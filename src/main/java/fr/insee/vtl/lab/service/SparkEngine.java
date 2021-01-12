@@ -80,7 +80,7 @@ public class SparkEngine {
         sparkBuilder.config("spark.hadoop.fs.s3a.secret.key", sparkProperties.getSecretKey());
         sparkBuilder.config("spark.hadoop.fs.s3a.connection.ssl.enabled", sparkProperties.getSslEnabled());
         sparkBuilder.config("spark.hadoop.fs.s3a.session.token", sparkProperties.getSessionToken());
-        sparkBuilder.config("spark.hadoop.fs.s3a.session.endpoint", sparkProperties.getSessionEndpoint());
+        sparkBuilder.config("spark.hadoop.fs.s3a.endpoint", sparkProperties.getSessionEndpoint());
 
         SparkSession spark = sparkBuilder.getOrCreate();
 

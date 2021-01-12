@@ -21,7 +21,7 @@ public class SparkProperties {
     @Value("${spark.hadoop.fs.s3a.session.token}")
     private String sessionToken;
 
-    @Value("${spark.hadoop.fs.s3a.session.endpoint}")
+    @Value("${spark.hadoop.fs.s3a.endpoint}")
     private String sessionEndpoint;
 
     public String getMaster() {
