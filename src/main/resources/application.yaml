@@ -1,0 +1,19 @@
+spark:
+  cluster:
+    master: "local"
+  hadoop:
+    fs:
+      s3a:
+        access:
+          key: ""
+        secret:
+          key: ""
+        connection:
+          ssl:
+            enabled: true
+        session:
+          token: ""
+        endpoint: ""
+        aws:
+          credentials:
+            provider: "org.apache.hadoop.fs.s3a.TemporaryAWSCredentialsProvider"
