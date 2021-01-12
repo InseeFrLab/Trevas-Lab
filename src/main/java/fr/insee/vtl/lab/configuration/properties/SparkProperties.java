@@ -1,15 +1,10 @@
 package fr.insee.vtl.lab.configuration.properties;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.env.Environment;
 
 @Configuration
 public class SparkProperties {
-
-    @Autowired
-    private Environment env;
 
     @Value("${spark.cluster.master}")
     private String master;
