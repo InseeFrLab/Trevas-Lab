@@ -11,9 +11,15 @@
 	<groupId>fr.insee</groupId>
 	<artifactId>vtl-lab</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<packaging>war</packaging>
 	<name>vtl-lab</name>
 	<description>VTL API calling Trevas</description>
+
+	<licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+        </license>
+    </licenses>
 
 	<properties>
 		<java.version>11</java.version>
