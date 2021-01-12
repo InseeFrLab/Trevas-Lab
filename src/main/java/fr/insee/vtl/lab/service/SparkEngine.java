@@ -74,7 +74,7 @@ public class SparkEngine {
 
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .appName("vtl-lab")
-                .master("spark.cluster.master");
+                .master(sparkProperties.getMaster());
 
         sparkBuilder.config("spark.hadoop.fs.s3a.access.key", sparkProperties.getAccessKey());
         sparkBuilder.config("spark.hadoop.fs.s3a.secret.key", sparkProperties.getSecretKey());
