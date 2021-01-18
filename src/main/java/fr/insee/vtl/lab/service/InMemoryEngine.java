@@ -1,6 +1,7 @@
 package fr.insee.vtl.lab.service;
 
 import fr.insee.vtl.lab.model.Body;
+import fr.insee.vtl.lab.model.User;
 import fr.insee.vtl.lab.utils.Utils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -15,7 +16,7 @@ public class InMemoryEngine {
 
     private static final Logger logger = LogManager.getLogger(InMemoryEngine.class);
 
-    public Bindings executeInMemory(Body body) {
+    public Bindings executeInMemory(User user, Body body) {
         String script = body.getVtlScript();
         Bindings jsonBindings = body.getBindings();
 

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.insee.vtl.lab.configuration.properties.SparkProperties;
 import fr.insee.vtl.lab.model.Body;
+import fr.insee.vtl.lab.model.User;
 import fr.insee.vtl.lab.utils.Utils;
 import fr.insee.vtl.model.Structured;
 import fr.insee.vtl.spark.SparkDataset;
@@ -33,7 +34,7 @@ public class SparkEngine {
     @Autowired
     private ObjectMapper objectMapper;
 
-    public Bindings executeLocalSpark(Body body) throws ScriptException {
+    public Bindings executeLocalSpark(User user, Body body) throws ScriptException {
         String script = body.getVtlScript();
         Bindings jsonBindings = body.getBindings();
 
@@ -68,7 +69,7 @@ public class SparkEngine {
         return output;
     }
 
-    public Bindings executeSparkCluster(Body body) throws ScriptException {
+    public Bindings executeSparkCluster(User user, Body body) throws ScriptException {
         String script = body.getVtlScript();
         Bindings jsonBindings = body.getBindings();
 
