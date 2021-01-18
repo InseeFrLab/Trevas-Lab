@@ -9,6 +9,13 @@ public class User {
 
     private List<String> groups;
 
+    public User() { }
+
+    public User(String id, String authToken) {
+        this.id = id;
+        this.authToken = authToken;
+    }
+
     public String getId() {
         return id;
     }

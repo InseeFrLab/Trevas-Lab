@@ -17,6 +17,13 @@ spark:
         aws:
           credentials:
             provider: "org.apache.hadoop.fs.s3a.TemporaryAWSCredentialsProvider"
-auth-type: "NONE"
+auth:
+  type: "NONE"
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ""
 jwt:
   username-claim: "preferred_username"
