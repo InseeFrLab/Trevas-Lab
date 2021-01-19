@@ -5,6 +5,9 @@ COPY target/lib /lib/
 
 COPY target/lib/vtl-spark-*.jar /vtl-spark.jar
 COPY target/lib/vtl-model-*.jar /vtl-model.jar
+COPY target/lib/vtl-engine-*.jar /vtl-engine.jar
+COPY target/lib/vtl-jackson-*.jar /vtl-jackson.jar
+COPY target/lib/vtl-parser-*.jar /vtl-parser.jar
 
 COPY target/vtl-lab*.jar.original /lib/vtl-lab.jar
 

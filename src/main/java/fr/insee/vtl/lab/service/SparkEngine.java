@@ -85,7 +85,15 @@ public class SparkEngine {
         sparkBuilder.config("spark.hadoop.fs.s3a.connection.ssl.enabled", sparkProperties.getSslEnabled());
         sparkBuilder.config("spark.hadoop.fs.s3a.session.token", sparkProperties.getSessionToken());
         sparkBuilder.config("spark.hadoop.fs.s3a.endpoint", sparkProperties.getSessionEndpoint());
-        sparkBuilder.config("spark.jars", "/vtl-spark.jar,/vtl-model.jar");
+        // Note: all the dependencies are required for deserialization.
+        // See https://stackoverflow.com/questions/28079307
+        sparkBuilder.config("spark.jars", String.join(",",
+                "/vtl-spark.jar",
+                "/vtl-model.jar",
+                "/vtl-jackson.jar",
+                "/vtl-parser.jar",
+                "/vtl-engine.jar"
+        ));
 
         SparkSession spark = sparkBuilder.getOrCreate();
 
