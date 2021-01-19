@@ -28,6 +28,9 @@ public class SparkEngine {
 
     private static final Logger logger = LogManager.getLogger(SparkEngine.class);
 
+    private static final TypeReference<List<Structured.Component>> COMPONENT_TYPE = new TypeReference<>() {
+    };
+
     @Autowired
     private SparkProperties sparkProperties;
 
@@ -90,14 +93,16 @@ public class SparkEngine {
         jsonBindings.forEach((k, v) -> {
             Dataset<Row> dataset = spark.read().parquet(v + "/parquet");
             try {
-                List<Structured.Component> components =
-                        objectMapper.readValue(Paths.get((String) v, "structure.json")
-                                        .toFile(),
-                                new TypeReference<>() {
-                                });
+                byte[] row = spark.read()
+                        .format("binaryFile")
+                        .load(v + "/structure.json")
+                        .first()
+                        .getAs("content");
+
+                List<Structured.Component> components = objectMapper.readValue(row, COMPONENT_TYPE);
                 Structured.DataStructure structure = new Structured.DataStructure(components);
                 updatedBindings.put(k, new SparkDataset(dataset, structure));
-            } catch (IOException e) {
+            } catch (Exception e) {
                 logger.warn("Parquet loading failed: ", e);
             }
         });
