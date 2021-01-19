@@ -85,7 +85,7 @@ public class SparkEngine {
         sparkBuilder.config("spark.hadoop.fs.s3a.connection.ssl.enabled", sparkProperties.getSslEnabled());
         sparkBuilder.config("spark.hadoop.fs.s3a.session.token", sparkProperties.getSessionToken());
         sparkBuilder.config("spark.hadoop.fs.s3a.endpoint", sparkProperties.getSessionEndpoint());
-        sparkBuilder.config("spark.jars", "/lib/vtl-spark.jar,/lib/vtl-model.jar");
+        sparkBuilder.config("spark.jars", "/vtl-spark.jar,/vtl-model.jar");
 
         SparkSession spark = sparkBuilder.getOrCreate();
 
