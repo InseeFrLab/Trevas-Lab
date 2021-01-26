@@ -12,7 +12,7 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 import org.springframework.security.oauth2.jwt.Jwt;
 
 @Configuration
-@ConditionalOnProperty(name = "authentication.type", havingValue = "OIDC")
+@ConditionalOnProperty(name = "auth.type", havingValue = "OIDC")
 @EnableWebSecurity
 public class OIDCSecurityConfiguration extends WebSecurityConfigurerAdapter {
 
