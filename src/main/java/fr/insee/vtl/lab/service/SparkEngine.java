@@ -133,6 +133,7 @@ public class SparkEngine {
                 .appName("vtl-lab")
                 .master("k8s://https://kubernetes.default.svc.cluster.local:443");
 
+        sparkBuilder.config("spark.kubernetes.container.image.pullPolicy", "Always");
         sparkBuilder.config("spark.kubernetes.container.image", sparkProperties.getKubernetesContainerImage());
 
         sparkBuilder.config("spark.kubernetes.namespace", sparkProperties.getKubernetesNamespace());
