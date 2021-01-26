@@ -24,6 +24,34 @@ public class SparkProperties {
     @Value("${spark.hadoop.fs.s3a.endpoint}")
     private String sessionEndpoint;
 
+    @Value("${spark.kubernetes.namespace}")
+    private String kubernetesNamespace;
+
+    @Value("${spark.kubernetes.executor.request.cores}")
+    private String kubernetesExecutorRequestCores;
+
+    @Value("${spark.kubernetes.driver.pod.name}")
+    private String kubernetesDriverPodName;
+
+    @Value("${spark.kubernetes.container.image}")
+    private String kubernetesContainerImage;
+
+    public String getKubernetesNamespace() {
+        return kubernetesNamespace;
+    }
+
+    public String getKubernetesContainerImage() {
+        return kubernetesContainerImage;
+    }
+
+    public String getKubernetesExecutorRequestCores() {
+        return kubernetesExecutorRequestCores;
+    }
+
+    public String getKubernetesDriverPodName() {
+        return kubernetesDriverPodName;
+    }
+
     public String getMaster() {
         return master;
     }

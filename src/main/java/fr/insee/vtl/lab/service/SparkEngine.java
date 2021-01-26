@@ -128,9 +128,16 @@ public class SparkEngine {
         String script = body.getVtlScript();
         Bindings jsonBindings = body.getBindings();
 
+
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .appName("vtl-lab")
-                .master(sparkProperties.getMaster());
+                .master("k8s://https://kubernetes.default.svc.cluster.local:443");
+
+        sparkBuilder.config("spark.kubernetes.container.image", sparkProperties.getKubernetesContainerImage());
+
+        sparkBuilder.config("spark.kubernetes.namespace", sparkProperties.getKubernetesNamespace());
+        sparkBuilder.config("spark.kubernetes.executor.request.cores", sparkProperties.getKubernetesExecutorRequestCores());
+        sparkBuilder.config("spark.kubernetes.driver.pod.name", sparkProperties.getKubernetesDriverPodName());
 
         sparkBuilder.config("spark.hadoop.fs.s3a.access.key", sparkProperties.getAccessKey());
         sparkBuilder.config("spark.hadoop.fs.s3a.secret.key", sparkProperties.getSecretKey());

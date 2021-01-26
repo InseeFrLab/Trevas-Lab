@@ -1,6 +1,16 @@
 spark:
   cluster:
     master: "local"
+  kubernetes:
+    namespace: "gr-vtl"
+    container:
+      image: "hadrienkohl/spark:3.0.1"
+    executor:
+      request:
+        cores: "100m"
+    driver:
+      pod:
+        name: "test"
   hadoop:
     fs:
       s3a:
