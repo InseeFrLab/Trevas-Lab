@@ -39,9 +39,14 @@ public class VtlLabController {
         return sparkEngine.executeLocalSpark(userProvider.getUser(auth), body);
     }
 
-    @PostMapping("/spark-cluster")
-    public Bindings executeSparkCluster(Authentication auth, @RequestBody Body body) throws ScriptException {
-        return sparkEngine.executeSparkCluster(userProvider.getUser(auth), body);
+    @PostMapping("/spark-static")
+    public Bindings executeSparkStatic(Authentication auth, @RequestBody Body body) throws ScriptException {
+        return sparkEngine.executeSparkStatic(userProvider.getUser(auth), body);
+    }
+
+    @PostMapping("/spark-kube")
+    public Bindings executeSparkKube(Authentication auth, @RequestBody Body body) throws ScriptException {
+        return sparkEngine.executeSparkKube(userProvider.getUser(auth), body);
     }
 
 }

@@ -72,7 +72,59 @@ public class SparkEngine {
         return output;
     }
 
-    public Bindings executeSparkCluster(User user, Body body) throws ScriptException {
+    public Bindings executeSparkStatic(User user, Body body) throws ScriptException {
+        String script = body.getVtlScript();
+        Bindings jsonBindings = body.getBindings();
+
+        SparkSession.Builder sparkBuilder = SparkSession.builder()
+                .appName("vtl-lab")
+                .master(sparkProperties.getMaster());
+
+        sparkBuilder.config("spark.hadoop.fs.s3a.access.key", sparkProperties.getAccessKey());
+        sparkBuilder.config("spark.hadoop.fs.s3a.secret.key", sparkProperties.getSecretKey());
+        sparkBuilder.config("spark.hadoop.fs.s3a.connection.ssl.enabled", sparkProperties.getSslEnabled());
+        sparkBuilder.config("spark.hadoop.fs.s3a.session.token", sparkProperties.getSessionToken());
+        sparkBuilder.config("spark.hadoop.fs.s3a.endpoint", sparkProperties.getSessionEndpoint());
+        // Note: all the dependencies are required for deserialization.
+        // See https://stackoverflow.com/questions/28079307
+        sparkBuilder.config("spark.jars", String.join(",",
+                "/vtl-spark.jar",
+                "/vtl-model.jar",
+                "/vtl-jackson.jar",
+                "/vtl-parser.jar",
+                "/vtl-engine.jar"
+        ));
+
+        SparkSession spark = sparkBuilder.getOrCreate();
+
+        Bindings updatedBindings = new SimpleBindings();
+
+        jsonBindings.forEach((k, v) -> {
+            Dataset<Row> dataset = spark.read().parquet(v + "/parquet");
+            try {
+                byte[] row = spark.read()
+                        .format("binaryFile")
+                        .load(v + "/structure.json")
+                        .first()
+                        .getAs("content");
+
+                List<Structured.Component> components = objectMapper.readValue(row, COMPONENT_TYPE);
+                Structured.DataStructure structure = new Structured.DataStructure(components);
+                updatedBindings.put(k, new SparkDataset(dataset, structure));
+            } catch (Exception e) {
+                logger.warn("Parquet loading failed: ", e);
+            }
+        });
+
+        ScriptEngine engine = Utils.initEngineWithSpark(updatedBindings, spark);
+
+        engine.eval(script);
+        Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
+        Bindings output = Utils.getBindings(outputBindings, true);
+        return output;
+    }
+
+    public Bindings executeSparkKube(User user, Body body) throws ScriptException {
         String script = body.getVtlScript();
         Bindings jsonBindings = body.getBindings();
 
