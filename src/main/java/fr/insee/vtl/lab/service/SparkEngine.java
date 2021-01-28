@@ -40,6 +40,7 @@ public class SparkEngine {
     public Bindings executeLocalSpark(User user, Body body) throws ScriptException {
         String script = body.getVtlScript();
         Bindings jsonBindings = body.getBindings();
+        Bindings toSave = body.getToSave();
 
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .appName("vtl-lab")
@@ -68,13 +69,16 @@ public class SparkEngine {
 
         engine.eval(script);
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
-        Bindings output = Utils.getBindings(outputBindings, true);
-        return output;
+        Bindings dsBindings = Utils.getBindings(outputBindings);
+        Bindings sizedBindings = Utils.getBindings(outputBindings, true);
+        Utils.write(dsBindings, toSave, spark);
+        return sizedBindings;
     }
 
     public Bindings executeSparkStatic(User user, Body body) throws ScriptException {
         String script = body.getVtlScript();
         Bindings jsonBindings = body.getBindings();
+        Bindings toSave = body.getToSave();
 
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .appName("vtl-lab")
@@ -123,14 +127,16 @@ public class SparkEngine {
 
         engine.eval(script);
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
-        Bindings output = Utils.getBindings(outputBindings, true);
-        return output;
+        Bindings dsBindings = Utils.getBindings(outputBindings);
+        Bindings sizedBindings = Utils.getBindings(outputBindings, true);
+        Utils.write(dsBindings, toSave, spark);
+        return sizedBindings;
     }
 
     public Bindings executeSparkKube(User user, Body body) throws ScriptException {
         String script = body.getVtlScript();
         Bindings jsonBindings = body.getBindings();
-
+        Bindings toSave = body.getToSave();
 
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .appName("vtl-lab")
@@ -186,8 +192,10 @@ public class SparkEngine {
 
         engine.eval(script);
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
-        Bindings output = Utils.getBindings(outputBindings, true);
-        return output;
+        Bindings dsBindings = Utils.getBindings(outputBindings);
+        Bindings sizedBindings = Utils.getBindings(outputBindings, true);
+        Utils.write(dsBindings, toSave, spark);
+        return sizedBindings;
     }
 
 }

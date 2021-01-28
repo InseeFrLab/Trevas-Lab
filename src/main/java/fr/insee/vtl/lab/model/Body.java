@@ -6,6 +6,7 @@ public class Body {
 
     private String vtlScript;
     private Bindings bindings;
+    private Bindings toSave;
 
     public String getVtlScript() {
         return vtlScript;
@@ -21,5 +22,13 @@ public class Body {
 
     public void setBindings(Bindings bindings) {
         this.bindings = bindings;
+    }
+
+    public Bindings getToSave() {
+        return toSave;
+    }
+
+    public void setToSave(Bindings toSave) {
+        this.toSave = toSave;
     }
 }

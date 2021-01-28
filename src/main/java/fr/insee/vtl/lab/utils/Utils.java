@@ -1,10 +1,12 @@
 package fr.insee.vtl.lab.utils;
 
-import fr.insee.vtl.engine.VtlScriptEngine;
-import fr.insee.vtl.engine.VtlScriptEngineFactory;
-import fr.insee.vtl.model.Dataset;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import fr.insee.vtl.spark.SparkDataset;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 
 import javax.script.*;
@@ -42,11 +44,20 @@ public class Utils {
         Bindings output = new SimpleBindings();
         input.forEach((k, v) -> {
             if (!k.startsWith("$")) {
-                var size = ((Dataset) v).getDataPoints().size();
+                var size = ((fr.insee.vtl.model.Dataset) v).getDataPoints().size();
                 output.put(k, size);
                 logger.info(k + " dataset has size: " + size);
             }
         });
         return output;
+    }
+
+    public static void write(Bindings bindings, Bindings toSave, SparkSession spark) {
+        toSave.forEach((k, v) -> {
+            SparkDataset dataset = (SparkDataset) bindings.get(k);
+            Dataset<Row> sparkDataset = dataset.getSparkDataset();
+            sparkDataset.write().mode(SaveMode.ErrorIfExists).parquet(v + "/parquet");
+            // TODO: Handle write of structure.json
+        });
     }
 }
