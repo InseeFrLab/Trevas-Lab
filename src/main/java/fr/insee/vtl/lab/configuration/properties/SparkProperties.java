@@ -9,6 +9,12 @@ public class SparkProperties {
     @Value("${spark.cluster.master}")
     private String master;
 
+    @Value("${spark.dynamicAllocation.enabled}")
+    private String dynamicAllocationEnabled;
+
+    @Value("${spark.dynamicAllocation.min.executors}")
+    private String dynamicAllocationMinExecutors;
+
     @Value("${spark.hadoop.fs.s3a.access.key}")
     private String accessKey;
 
@@ -35,6 +41,14 @@ public class SparkProperties {
 
     @Value("${spark.kubernetes.container.image}")
     private String kubernetesContainerImage;
+
+    public String getDynamicAllocationEnabled() {
+        return dynamicAllocationEnabled;
+    }
+
+    public String getDynamicAllocationMinExecutors() {
+        return dynamicAllocationMinExecutors;
+    }
 
     public String getKubernetesNamespace() {
         return kubernetesNamespace;

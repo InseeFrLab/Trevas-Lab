@@ -80,6 +80,9 @@ public class SparkEngine {
                 .appName("vtl-lab")
                 .master(sparkProperties.getMaster());
 
+        sparkBuilder.config("spark.dynamicAllocation.enabled", sparkProperties.getDynamicAllocationEnabled());
+        sparkBuilder.config("spark.dynamicAllocation.minExecutors", sparkProperties.getDynamicAllocationMinExecutors());
+
         sparkBuilder.config("spark.hadoop.fs.s3a.access.key", sparkProperties.getAccessKey());
         sparkBuilder.config("spark.hadoop.fs.s3a.secret.key", sparkProperties.getSecretKey());
         sparkBuilder.config("spark.hadoop.fs.s3a.connection.ssl.enabled", sparkProperties.getSslEnabled());
@@ -135,6 +138,9 @@ public class SparkEngine {
 
         sparkBuilder.config("spark.kubernetes.container.image.pullPolicy", "Always");
         sparkBuilder.config("spark.kubernetes.container.image", sparkProperties.getKubernetesContainerImage());
+
+        sparkBuilder.config("spark.dynamicAllocation.enabled", sparkProperties.getDynamicAllocationEnabled());
+        sparkBuilder.config("spark.dynamicAllocation.minExecutors", sparkProperties.getDynamicAllocationMinExecutors());
 
         sparkBuilder.config("spark.kubernetes.namespace", sparkProperties.getKubernetesNamespace());
         sparkBuilder.config("spark.kubernetes.executor.request.cores", sparkProperties.getKubernetesExecutorRequestCores());
