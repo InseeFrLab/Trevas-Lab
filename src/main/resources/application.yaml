@@ -1,6 +1,10 @@
 spark:
   cluster:
     master: "local"
+  dynamicAllocation:
+    enabled: false
+    min:
+      executors: "2"
   kubernetes:
     namespace: "gr-vtl"
     container:
@@ -28,7 +32,7 @@ spark:
           credentials:
             provider: "org.apache.hadoop.fs.s3a.TemporaryAWSCredentialsProvider"
 auth:
-  type: "NONE"
+  mode: "NONE"
 spring:
   security:
     oauth2:
