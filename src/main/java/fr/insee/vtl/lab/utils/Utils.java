@@ -7,24 +7,21 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.spark.sql.SparkSession;
 
-import javax.script.Bindings;
-import javax.script.ScriptContext;
-import javax.script.ScriptEngine;
-import javax.script.SimpleBindings;
+import javax.script.*;
 
 public class Utils {
 
     private static final Logger logger = LogManager.getLogger(Utils.class);
 
     public static ScriptEngine initEngine(Bindings bindings) {
-        ScriptEngine engine = new VtlScriptEngine(new VtlScriptEngineFactory());
+        ScriptEngine engine = new ScriptEngineManager().getEngineByName("vtl");
         ScriptContext context = engine.getContext();
         context.setBindings(bindings, ScriptContext.ENGINE_SCOPE);
         return engine;
     }
 
     public static ScriptEngine initEngineWithSpark(Bindings bindings, SparkSession spark) {
-        ScriptEngine engine = new VtlScriptEngine(new VtlScriptEngineFactory());
+        ScriptEngine engine = new ScriptEngineManager().getEngineByName("vtl");
         ScriptContext context = engine.getContext();
         context.setBindings(bindings, ScriptContext.ENGINE_SCOPE);
         engine.put("$vtl.engine.processing_engine_names", "spark");
