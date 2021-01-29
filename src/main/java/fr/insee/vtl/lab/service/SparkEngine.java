@@ -71,7 +71,7 @@ public class SparkEngine {
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
         Bindings dsBindings = Utils.getBindings(outputBindings);
         Bindings sizedBindings = Utils.getBindings(outputBindings, true);
-        Utils.write(dsBindings, toSave, spark);
+        Utils.write(dsBindings, toSave, sparkProperties, objectMapper);
         return sizedBindings;
     }
 
@@ -107,8 +107,8 @@ public class SparkEngine {
         Bindings updatedBindings = new SimpleBindings();
 
         jsonBindings.forEach((k, v) -> {
-            Dataset<Row> dataset = spark.read().parquet(v + "/parquet");
             try {
+                Dataset<Row> dataset = spark.read().parquet(v + "/parquet");
                 byte[] row = spark.read()
                         .format("binaryFile")
                         .load(v + "/structure.json")
@@ -129,7 +129,7 @@ public class SparkEngine {
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
         Bindings dsBindings = Utils.getBindings(outputBindings);
         Bindings sizedBindings = Utils.getBindings(outputBindings, true);
-        Utils.write(dsBindings, toSave, spark);
+        Utils.write(dsBindings, toSave, sparkProperties, objectMapper);
         return sizedBindings;
     }
 
@@ -194,7 +194,7 @@ public class SparkEngine {
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
         Bindings dsBindings = Utils.getBindings(outputBindings);
         Bindings sizedBindings = Utils.getBindings(outputBindings, true);
-        Utils.write(dsBindings, toSave, spark);
+        Utils.write(dsBindings, toSave, sparkProperties, objectMapper);
         return sizedBindings;
     }
 
