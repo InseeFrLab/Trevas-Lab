@@ -85,7 +85,9 @@ public class SparkEngine {
                 .master(sparkProperties.getMaster());
 
         sparkBuilder.config("spark.dynamicAllocation.enabled", sparkProperties.getDynamicAllocationEnabled());
+        sparkBuilder.config("spark.dynamicAllocation.shuffleTracking.enabled", sparkProperties.getDynamicAllocationEnabled());
         sparkBuilder.config("spark.dynamicAllocation.minExecutors", sparkProperties.getDynamicAllocationMinExecutors());
+
 
         sparkBuilder.config("spark.hadoop.fs.s3a.access.key", sparkProperties.getAccessKey());
         sparkBuilder.config("spark.hadoop.fs.s3a.secret.key", sparkProperties.getSecretKey());
