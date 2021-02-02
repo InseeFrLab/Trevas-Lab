@@ -42,6 +42,10 @@ public class SparkProperties {
     @Value("${spark.kubernetes.container.image}")
     private String kubernetesContainerImage;
 
+
+    @Value("${spark.kubernetes.container.pullPolicy}")
+    private String kubernetesContainerImagePullPolicy;
+
     public String getDynamicAllocationEnabled() {
         return dynamicAllocationEnabled;
     }
@@ -58,6 +62,10 @@ public class SparkProperties {
         return kubernetesContainerImage;
     }
 
+    public String getKubernetesContainerImagePullPolicy() {
+        return kubernetesContainerImagePullPolicy;
+    }
+
     public String getKubernetesExecutorRequestCores() {
         return kubernetesExecutorRequestCores;
     }
@@ -70,47 +78,24 @@ public class SparkProperties {
         return master;
     }
 
-    public void setMaster(String master) {
-        this.master = master;
-    }
-
     public String getAccessKey() {
         return accessKey;
-    }
-
-    public void setAccessKey(String accessKey) {
-        this.accessKey = accessKey;
     }
 
     public String getSecretKey() {
         return secretKey;
     }
 
-    public void setSecretKey(String secretKey) {
-        this.secretKey = secretKey;
-    }
-
     public String getSslEnabled() {
         return sslEnabled;
-    }
-
-    public void setSslEnabled(String sslEnabled) {
-        this.sslEnabled = sslEnabled;
     }
 
     public String getSessionToken() {
         return sessionToken;
     }
 
-    public void setSessionToken(String sessionToken) {
-        this.sessionToken = sessionToken;
-    }
-
     public String getSessionEndpoint() {
         return sessionEndpoint;
     }
 
-    public void setSessionEndpoint(String sessionEndpoint) {
-        this.sessionEndpoint = sessionEndpoint;
-    }
 }

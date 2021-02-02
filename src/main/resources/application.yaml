@@ -11,6 +11,7 @@ spark:
     namespace: "gr-vtl"
     container:
       image: "hadrienkohl/spark:3.0.1"
+      pullPolicy: "IfNotPresent"
     executor:
       request:
         cores: "100m"
@@ -40,6 +41,6 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: "https://keycloak.dev.insee.io/auth/realms/dev"
+          issuer-uri: ""
 jwt:
   username-claim: "preferred_username"
