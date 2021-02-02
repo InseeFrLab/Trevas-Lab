@@ -146,6 +146,7 @@ public class SparkEngine {
         sparkBuilder.config("spark.kubernetes.container.image", sparkProperties.getKubernetesContainerImage());
 
         sparkBuilder.config("spark.dynamicAllocation.enabled", sparkProperties.getDynamicAllocationEnabled());
+        sparkBuilder.config("spark.dynamicAllocation.shuffleTracking.enabled", sparkProperties.getDynamicAllocationEnabled());
         sparkBuilder.config("spark.dynamicAllocation.minExecutors", sparkProperties.getDynamicAllocationMinExecutors());
 
         sparkBuilder.config("spark.kubernetes.namespace", sparkProperties.getKubernetesNamespace());

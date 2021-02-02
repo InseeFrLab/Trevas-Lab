@@ -3,6 +3,8 @@ spark:
     master: "local"
   dynamicAllocation:
     enabled: false
+    shuffleTracking:
+      enabled: false
     min:
       executors: "2"
   kubernetes:
