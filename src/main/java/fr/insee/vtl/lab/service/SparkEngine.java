@@ -71,7 +71,7 @@ public class SparkEngine {
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
         Bindings dsBindings = Utils.getBindings(outputBindings);
         Bindings sizedBindings = Utils.getBindings(outputBindings, true);
-        Utils.write(dsBindings, toSave, sparkProperties, objectMapper);
+        Utils.writeSparkDataset(dsBindings, toSave, objectMapper, spark);
         return sizedBindings;
     }
 
@@ -115,6 +115,7 @@ public class SparkEngine {
                         .first()
                         .getAs("content");
 
+
                 List<Structured.Component> components = objectMapper.readValue(row, COMPONENT_TYPE);
                 Structured.DataStructure structure = new Structured.DataStructure(components);
                 updatedBindings.put(k, new SparkDataset(dataset, structure));
@@ -129,7 +130,7 @@ public class SparkEngine {
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
         Bindings dsBindings = Utils.getBindings(outputBindings);
         Bindings sizedBindings = Utils.getBindings(outputBindings, true);
-        Utils.write(dsBindings, toSave, sparkProperties, objectMapper);
+        Utils.writeSparkDataset(dsBindings, toSave, objectMapper, spark);
         return sizedBindings;
     }
 
@@ -195,7 +196,7 @@ public class SparkEngine {
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
         Bindings dsBindings = Utils.getBindings(outputBindings);
         Bindings sizedBindings = Utils.getBindings(outputBindings, true);
-        Utils.write(dsBindings, toSave, sparkProperties, objectMapper);
+        Utils.writeSparkDataset(dsBindings, toSave, objectMapper, spark);
         return sizedBindings;
     }
 

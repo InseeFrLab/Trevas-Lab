@@ -2,24 +2,17 @@ package fr.insee.vtl.lab.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import fr.insee.vtl.lab.configuration.properties.SparkProperties;
 import fr.insee.vtl.spark.SparkDataset;
-import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
-import io.minio.errors.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 
 import javax.script.*;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
+import java.util.List;
 
 public class Utils {
 
@@ -62,49 +55,24 @@ public class Utils {
         return output;
     }
 
-    public static void write(Bindings bindings, Bindings toSave,
-                             SparkProperties sparkProperties, ObjectMapper objectMapper) {
+    public static void writeSparkDataset(Bindings bindings, Bindings toSave,
+                                         ObjectMapper objectMapper,
+                                         SparkSession spark) {
         toSave.forEach((k, v) -> {
             SparkDataset dataset = (SparkDataset) bindings.get(k);
             Dataset<Row> sparkDataset = dataset.getSparkDataset();
             sparkDataset.write().mode(SaveMode.ErrorIfExists).parquet(v + "/parquet");
+            // Trick to write json thanks to spark
             String json = "";
             try {
                 json = objectMapper.writeValueAsString(dataset.getDataStructure().values());
             } catch (JsonProcessingException e) {
                 e.printStackTrace();
             }
-            MinioClient minioClient =
-                    MinioClient.builder()
-                            .endpoint(sparkProperties.getSessionEndpoint())
-                            .credentials(sparkProperties.getAccessKey(), sparkProperties.getSecretKey())
-                            .build();
-            InputStream inputStream = new ByteArrayInputStream(json.getBytes());
-            try {
-                minioClient.putObject(
-                        PutObjectArgs.builder().bucket(sparkProperties.getAccessKey())
-                                .object(((String) v).replace("s3a://vtl/", "") + "/structure.json")
-                                .stream(inputStream, json.getBytes().length, -1)
-                                .build());
-            } catch (ErrorResponseException e) {
-                e.printStackTrace();
-            } catch (InsufficientDataException e) {
-                e.printStackTrace();
-            } catch (InternalException e) {
-                e.printStackTrace();
-            } catch (InvalidKeyException e) {
-                e.printStackTrace();
-            } catch (InvalidResponseException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (NoSuchAlgorithmException e) {
-                e.printStackTrace();
-            } catch (ServerException e) {
-                e.printStackTrace();
-            } catch (XmlParserException e) {
-                e.printStackTrace();
-            }
+            JavaSparkContext.fromSparkContext(spark.sparkContext())
+                    .parallelize(List.of(json.getBytes()))
+                    .coalesce(1)
+                    .saveAsTextFile(v + "/structure.json");
         });
     }
 }
