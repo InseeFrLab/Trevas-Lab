@@ -30,6 +30,12 @@ public class SparkProperties {
     @Value("${spark.hadoop.fs.s3a.endpoint}")
     private String sessionEndpoint;
 
+    @Value("${spark.driver.memory}")
+    private String driverMemory;
+
+    @Value("${spark.executor.memory}")
+    private String executorMemory;
+
     @Value("${spark.kubernetes.namespace}")
     private String kubernetesNamespace;
 
@@ -52,6 +58,14 @@ public class SparkProperties {
 
     public String getDynamicAllocationMinExecutors() {
         return dynamicAllocationMinExecutors;
+    }
+
+    public String getDriverMemory() {
+        return driverMemory;
+    }
+
+    public String getExecutorMemory() {
+        return executorMemory;
     }
 
     public String getKubernetesNamespace() {

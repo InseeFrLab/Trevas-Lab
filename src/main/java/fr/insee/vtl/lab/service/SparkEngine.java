@@ -152,6 +152,9 @@ public class SparkEngine {
         sparkBuilder.config("spark.dynamicAllocation.shuffleTracking.enabled", sparkProperties.getDynamicAllocationEnabled());
         sparkBuilder.config("spark.dynamicAllocation.minExecutors", sparkProperties.getDynamicAllocationMinExecutors());
 
+        sparkBuilder.config("spark.driver.memory", sparkProperties.getDriverMemory());
+        sparkBuilder.config("spark.executor.memory", sparkProperties.getExecutorMemory());
+
         sparkBuilder.config("spark.kubernetes.namespace", sparkProperties.getKubernetesNamespace());
         sparkBuilder.config("spark.kubernetes.executor.request.cores", sparkProperties.getKubernetesExecutorRequestCores());
         sparkBuilder.config("spark.kubernetes.driver.pod.name", sparkProperties.getKubernetesDriverPodName());
