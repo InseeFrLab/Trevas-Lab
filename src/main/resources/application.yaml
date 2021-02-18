@@ -7,6 +7,10 @@ spark:
       enabled: false
     min:
       executors: "2"
+  driver:
+    memory: "1g"
+  executor:
+    memory: "1g"
   kubernetes:
     namespace: "gr-vtl"
     container:
