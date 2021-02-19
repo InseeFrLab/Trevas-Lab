@@ -11,6 +11,9 @@ spark:
     memory: "1g"
   executor:
     memory: "1g"
+  rpc:
+    message:
+      maxSize: "256"
   kubernetes:
     namespace: "gr-vtl"
     container:

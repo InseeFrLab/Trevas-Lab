@@ -154,6 +154,7 @@ public class SparkEngine {
 
         sparkBuilder.config("spark.driver.memory", sparkProperties.getDriverMemory());
         sparkBuilder.config("spark.executor.memory", sparkProperties.getExecutorMemory());
+        sparkBuilder.config("spark.rpc.message.maxSize", sparkProperties.getRpcMessageMaxSize());
 
         sparkBuilder.config("spark.kubernetes.namespace", sparkProperties.getKubernetesNamespace());
         sparkBuilder.config("spark.kubernetes.executor.request.cores", sparkProperties.getKubernetesExecutorRequestCores());
