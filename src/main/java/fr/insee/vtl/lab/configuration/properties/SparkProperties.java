@@ -37,7 +37,7 @@ public class SparkProperties {
     private String executorMemory;
 
     @Value("spark.rpc.message.maxSize")
-    private String rpcMessageMaxSize;
+    private int rpcMessageMaxSize;
 
     @Value("${spark.kubernetes.namespace}")
     private String kubernetesNamespace;
@@ -71,7 +71,7 @@ public class SparkProperties {
         return executorMemory;
     }
 
-    public String getRpcMessageMaxSize() {
+    public int getRpcMessageMaxSize() {
         return rpcMessageMaxSize;
     }
 
