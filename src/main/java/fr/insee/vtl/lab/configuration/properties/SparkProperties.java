@@ -36,8 +36,8 @@ public class SparkProperties {
     @Value("${spark.executor.memory}")
     private String executorMemory;
 
-    @Value("spark.rpc.message.maxSize")
-    private int rpcMessageMaxSize;
+    @Value("${spark.rpc.message.maxSize}")
+    private Integer rpcMessageMaxSize;
 
     @Value("${spark.kubernetes.namespace}")
     private String kubernetesNamespace;
@@ -50,7 +50,6 @@ public class SparkProperties {
 
     @Value("${spark.kubernetes.container.image}")
     private String kubernetesContainerImage;
-
 
     @Value("${spark.kubernetes.container.pullPolicy}")
     private String kubernetesContainerImagePullPolicy;
@@ -71,7 +70,7 @@ public class SparkProperties {
         return executorMemory;
     }
 
-    public int getRpcMessageMaxSize() {
+    public Integer getRpcMessageMaxSize() {
         return rpcMessageMaxSize;
     }
 
