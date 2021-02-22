@@ -149,6 +149,11 @@
                 </executions>
             </plugin>
         </plugins>
+        <resources>
+            <resource>
+                <includes>banner.txt</includes>
+            </resource>
+        </resources>
     </build>
 
 </project>
