@@ -167,6 +167,7 @@ public class SparkEngine {
         sparkBuilder.config("spark.hadoop.fs.s3a.session.token", sparkProperties.getSessionToken());
         sparkBuilder.config("spark.hadoop.fs.s3a.endpoint", sparkProperties.getSessionEndpoint());
         sparkBuilder.config("spark.hadoop.fs.s3a.path.style.access", true);
+        sparkBuilder.config("spark.hadoop.fs.s3a.aws.credentials.provider","org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
 
         // Note: all the dependencies are required for deserialization.
         // See https://stackoverflow.com/questions/28079307
