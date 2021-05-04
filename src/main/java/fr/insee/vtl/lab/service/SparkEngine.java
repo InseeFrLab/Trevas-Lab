@@ -94,6 +94,7 @@ public class SparkEngine {
         sparkBuilder.config("spark.hadoop.fs.s3a.connection.ssl.enabled", sparkProperties.getSslEnabled());
         sparkBuilder.config("spark.hadoop.fs.s3a.session.token", sparkProperties.getSessionToken());
         sparkBuilder.config("spark.hadoop.fs.s3a.endpoint", sparkProperties.getSessionEndpoint());
+        sparkBuilder.config("spark.hadoop.fs.s3a.path.style.access", true);
         // Note: all the dependencies are required for deserialization.
         // See https://stackoverflow.com/questions/28079307
         sparkBuilder.config("spark.jars", String.join(",",
@@ -154,7 +155,7 @@ public class SparkEngine {
 
         sparkBuilder.config("spark.driver.memory", sparkProperties.getDriverMemory());
         sparkBuilder.config("spark.executor.memory", sparkProperties.getExecutorMemory());
-        sparkBuilder.config("spark.rpc.message.maxSize", sparkProperties.getRpcMessageMaxSize());
+        sparkBuilder.config("spark.rpc.message.maxSize", 2046);
 
         sparkBuilder.config("spark.kubernetes.namespace", sparkProperties.getKubernetesNamespace());
         sparkBuilder.config("spark.kubernetes.executor.request.cores", sparkProperties.getKubernetesExecutorRequestCores());
@@ -165,6 +166,8 @@ public class SparkEngine {
         sparkBuilder.config("spark.hadoop.fs.s3a.connection.ssl.enabled", sparkProperties.getSslEnabled());
         sparkBuilder.config("spark.hadoop.fs.s3a.session.token", sparkProperties.getSessionToken());
         sparkBuilder.config("spark.hadoop.fs.s3a.endpoint", sparkProperties.getSessionEndpoint());
+        sparkBuilder.config("spark.hadoop.fs.s3a.path.style.access", true);
+
         // Note: all the dependencies are required for deserialization.
         // See https://stackoverflow.com/questions/28079307
         sparkBuilder.config("spark.jars", String.join(",",
