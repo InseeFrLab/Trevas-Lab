@@ -2,6 +2,7 @@ package fr.insee.vtl.lab.controller;
 
 import fr.insee.vtl.lab.configuration.security.UserProvider;
 import fr.insee.vtl.lab.model.Body;
+import fr.insee.vtl.lab.model.ParquetPaths;
 import fr.insee.vtl.lab.service.InMemoryEngine;
 import fr.insee.vtl.lab.service.SparkEngine;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +48,11 @@ public class VtlLabController {
     @PostMapping("/spark-kube")
     public Bindings executeSparkKube(Authentication auth, @RequestBody Body body) throws ScriptException {
         return sparkEngine.executeSparkKube(userProvider.getUser(auth), body);
+    }
+
+    @PostMapping("/build-parquet")
+    public String buildParquet(Authentication auth, @RequestBody ParquetPaths parquetPaths) {
+        return sparkEngine.buildParquet(userProvider.getUser(auth), parquetPaths);
     }
 
 }

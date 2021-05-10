@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.insee.vtl.lab.configuration.properties.SparkProperties;
 import fr.insee.vtl.lab.model.Body;
+import fr.insee.vtl.lab.model.ParquetPaths;
 import fr.insee.vtl.lab.model.User;
 import fr.insee.vtl.lab.utils.Utils;
 import fr.insee.vtl.model.Structured;
@@ -12,7 +13,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.types.StructType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Service;
@@ -21,6 +24,7 @@ import javax.script.*;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @ConfigurationProperties(prefix = "spark")
@@ -208,6 +212,46 @@ public class SparkEngine {
         Bindings sizedBindings = Utils.getBindings(outputBindings, true);
         Utils.writeSparkDataset(dsBindings, toSave, objectMapper, spark);
         return sizedBindings;
+    }
+
+    public String buildParquet(User user, ParquetPaths parquetPaths) {
+
+        String structure = parquetPaths.getStructure();
+        String data = parquetPaths.getData();
+        String target = parquetPaths.getTarget();
+
+        SparkSession.Builder sparkBuilder = SparkSession.builder()
+                .appName("vtl-lab")
+                .master("local");
+
+        SparkSession spark = sparkBuilder.getOrCreate();
+
+        TypeReference<List<Structured.Component>> COMPONENT_TYPE = new TypeReference<>() {
+        };
+
+        byte[] row = spark.read()
+                .format("binaryFile")
+                .load(structure)
+                .first()
+                .getAs("content");
+
+        List<Structured.Component> components = null;
+        try {
+            components = objectMapper.readValue(row, COMPONENT_TYPE);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return "ko";
+        }
+        Structured.DataStructure dsStructure = new Structured.DataStructure(components);
+
+        StructType structType = SparkDataset.toSparkSchema(dsStructure);
+
+        Dataset<Row> dataset = spark.read()
+                .options(Map.of("header", "true", "delimiter",";"))
+                .schema(structType)
+                .csv(data);
+        dataset.write().mode(SaveMode.Overwrite).parquet(target);
+        return "ok";
     }
 
 }
