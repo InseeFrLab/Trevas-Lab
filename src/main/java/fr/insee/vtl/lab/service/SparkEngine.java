@@ -158,10 +158,10 @@ public class SparkEngine {
 
         try {
             var hostName = InetAddress.getLocalHost().getHostName();
-            var configHostname = conf.get("spark.kubernetes.driver.pod.name");
+            var configHostname = conf.getOption("spark.kubernetes.driver.pod.name");
             logger.info("Driver host name:\n - configured: {}\n - local: {}\n - env: {}",
                     configHostname, hostName, System.getenv("spark.kubernetes.driver.pod.name"));
-            if (configHostname == null || configHostname.isEmpty()) {
+            if (configHostname.isEmpty()) {
                 conf.set("spark.kubernetes.driver.pod.name", hostName);
             }
         } catch (UnknownHostException e) {
