@@ -26,6 +26,8 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
+import static fr.insee.vtl.lab.utils.Utils.loadSparkConfig;
+
 @Service
 @ConfigurationProperties(prefix = "spark")
 public class SparkEngine {
@@ -146,16 +148,18 @@ public class SparkEngine {
         Bindings jsonBindings = body.getBindings();
         Bindings toSave = body.getToSave();
 
+        String path = System.getenv("SPARK_CONF_DIR") + "spark.conf";
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .appName("vtl-lab")
-                .master("k8s://https://kubernetes.default.svc.cluster.local:443");
+                .master("k8s://https://kubernetes.default.svc.cluster.local:443")
+                .config(loadSparkConfig(path));
 
         sparkBuilder.config("spark.kubernetes.container.image.pullPolicy", sparkProperties.getKubernetesContainerImagePullPolicy());
         sparkBuilder.config("spark.kubernetes.container.image", sparkProperties.getKubernetesContainerImage());
 
-        sparkBuilder.config("spark.dynamicAllocation.enabled", sparkProperties.getDynamicAllocationEnabled());
-        sparkBuilder.config("spark.dynamicAllocation.shuffleTracking.enabled", sparkProperties.getDynamicAllocationEnabled());
-        sparkBuilder.config("spark.dynamicAllocation.minExecutors", sparkProperties.getDynamicAllocationMinExecutors());
+        //sparkBuilder.config("spark.dynamicAllocation.enabled", sparkProperties.getDynamicAllocationEnabled());
+        //sparkBuilder.config("spark.dynamicAllocation.shuffleTracking.enabled", sparkProperties.getDynamicAllocationEnabled());
+        //sparkBuilder.config("spark.dynamicAllocation.minExecutors", sparkProperties.getDynamicAllocationMinExecutors());
 
         sparkBuilder.config("spark.driver.memory", sparkProperties.getDriverMemory());
         sparkBuilder.config("spark.executor.memory", sparkProperties.getExecutorMemory());

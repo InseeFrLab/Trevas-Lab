@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.insee.vtl.spark.SparkDataset;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -40,6 +41,17 @@ public class Utils {
             if (!k.startsWith("$")) output.put(k, v);
         });
         return output;
+    }
+
+    public static SparkConf loadSparkConfig(String path) {
+        try {
+            SparkConf conf = new SparkConf();
+            org.apache.spark.util.Utils.loadDefaultSparkProperties(conf, path);
+            return conf;
+        } catch (Exception ex) {
+            logger.error("could not load spark config from {}", path, ex);
+            throw ex;
+        }
     }
 
     public static Bindings getBindings(Bindings input, Boolean toLength) {
