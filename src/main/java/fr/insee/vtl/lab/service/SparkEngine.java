@@ -11,6 +11,7 @@ import fr.insee.vtl.model.Structured;
 import fr.insee.vtl.spark.SparkDataset;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.spark.SparkConf;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
@@ -22,6 +23,8 @@ import org.springframework.stereotype.Service;
 
 import javax.script.*;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -151,8 +154,22 @@ public class SparkEngine {
 
         Path path = Path.of(System.getenv("SPARK_CONF_DIR"), "spark.conf")
                 .toAbsolutePath();
+        SparkConf conf = loadSparkConfig(path);
+
+        try {
+            var hostName = InetAddress.getLocalHost().getHostName();
+            var configHostname = conf.get("spark.kubernetes.driver.pod.name");
+            logger.info("Driver host name:\n - configured: {}\n - local: {}\n - env: {}",
+                    configHostname, hostName, System.getenv("spark.kubernetes.driver.pod.name"));
+            if (configHostname == null || configHostname.isEmpty()) {
+                conf.set("spark.kubernetes.driver.pod.name", hostName);
+            }
+        } catch (UnknownHostException e) {
+            logger.error("could not setup driver pod name", e);
+        }
+
         SparkSession.Builder sparkBuilder = SparkSession.builder()
-                .config(loadSparkConfig(path))
+                .config(conf)
                 .master("k8s://https://kubernetes.default.svc.cluster.local:443");
 
         // Note: all the dependencies are required for deserialization.
