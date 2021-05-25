@@ -152,21 +152,8 @@ public class SparkEngine {
         Bindings jsonBindings = body.getBindings();
         Bindings toSave = body.getToSave();
 
-        Path path = Path.of(System.getenv("SPARK_CONF_DIR"), "spark.conf")
-                .toAbsolutePath();
+        Path path = Path.of(System.getenv("SPARK_CONF_DIR"), "spark.conf");
         SparkConf conf = loadSparkConfig(path);
-
-        try {
-            var hostName = InetAddress.getLocalHost().getHostName();
-            var configHostname = conf.getOption("spark.kubernetes.driver.pod.name");
-            logger.info("Driver host name:\n - configured: {}\n - local: {}\n - env: {}",
-                    configHostname, hostName, System.getenv("spark.kubernetes.driver.pod.name"));
-            if (configHostname.isEmpty()) {
-                conf.set("spark.kubernetes.driver.pod.name", hostName);
-            }
-        } catch (UnknownHostException e) {
-            logger.error("could not setup driver pod name", e);
-        }
 
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .config(conf)

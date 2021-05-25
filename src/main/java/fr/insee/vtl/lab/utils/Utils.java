@@ -15,6 +15,9 @@ import org.apache.spark.sql.SparkSession;
 import javax.script.*;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
+
+import static java.util.Optional.*;
 
 public class Utils {
 
@@ -48,6 +51,16 @@ public class Utils {
         try {
             SparkConf conf = new SparkConf(true);
             org.apache.spark.util.Utils.loadDefaultSparkProperties(conf, path.toAbsolutePath().toString());
+
+            if (!conf.contains("spark.kubernetes.driver.pod.name")) {
+                var podNameUpperCase = ofNullable(System.getenv().get("SPARK_KUBERNETES_DRIVER_POD_NAME"));
+                var podName = ofNullable(System.getenv().get("spark.kubernetes.driver.pod.name"));
+                conf.set(
+                        "spark.kubernetes.driver.pod.name",
+                        podNameUpperCase.or(() -> podName).orElseThrow()
+                );
+            }
+
             return conf;
         } catch (Exception ex) {
             logger.error("could not load spark config from {}", path, ex);
