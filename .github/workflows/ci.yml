@@ -23,33 +23,6 @@ jobs:
         run: mvn -B versions:set -DnewVersion=${GITHUB_REF##*/} -DprocessAllModules -DgenerateBackupPoms=false
       - name: Build with Maven
         run: mvn -B package -DskipTests
-      - name: Upload app jar
-        uses: actions/upload-artifact@v2
-        with:
-          name: app-jar
-          path: target/*.jar
-      - name: Upload lib jars
-        uses: actions/upload-artifact@v2
-        with:
-          name: lib-jars
-          path: target/lib/*.jar
-  docker:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Download app jar
-        id: download-app-jar
-        uses: actions/download-artifact@v2
-        with:
-          name: app-jar
-          path: target
-      - name: Download lib jars
-        id: download-lib-jars
-        uses: actions/download-artifact@v2
-        with:
-          name: lib-jars
-          path: target/lib
       - name: Docker meta
         id: docker_meta
         uses: crazy-max/ghaction-docker-meta@v1.8.4
