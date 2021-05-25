@@ -13,6 +13,7 @@ import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 
 import javax.script.*;
+import java.nio.file.Path;
 import java.util.List;
 
 public class Utils {
@@ -43,10 +44,10 @@ public class Utils {
         return output;
     }
 
-    public static SparkConf loadSparkConfig(String path) {
+    public static SparkConf loadSparkConfig(Path path) {
         try {
-            SparkConf conf = new SparkConf();
-            org.apache.spark.util.Utils.loadDefaultSparkProperties(conf, path);
+            SparkConf conf = new SparkConf(true);
+            org.apache.spark.util.Utils.loadDefaultSparkProperties(conf, path.toAbsolutePath().toString());
             return conf;
         } catch (Exception ex) {
             logger.error("could not load spark config from {}", path, ex);
