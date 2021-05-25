@@ -27,7 +27,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: jar
-          path: target/*.jar
+          path: target/**/*.jar
   docker:
     needs: build
     runs-on: ubuntu-latest
