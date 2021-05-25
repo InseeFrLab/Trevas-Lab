@@ -15,6 +15,7 @@ import org.apache.spark.sql.SparkSession;
 import javax.script.*;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static java.util.Optional.*;
@@ -52,13 +53,11 @@ public class Utils {
             SparkConf conf = new SparkConf(true);
             org.apache.spark.util.Utils.loadDefaultSparkProperties(conf, path.toAbsolutePath().toString());
 
-            if (!conf.contains("spark.kubernetes.driver.pod.name")) {
-                var podNameUpperCase = ofNullable(System.getenv().get("SPARK_KUBERNETES_DRIVER_POD_NAME"));
-                var podName = ofNullable(System.getenv().get("spark.kubernetes.driver.pod.name"));
-                conf.set(
-                        "spark.kubernetes.driver.pod.name",
-                        podNameUpperCase.or(() -> podName).orElseThrow()
-                );
+            for (Map.Entry<String, String> entry : System.getenv().entrySet()) {
+                var normalizedName = entry.getKey().toLowerCase().replace("_", ".");
+                if (normalizedName.startsWith("spark.")) {
+                    conf.set(normalizedName, entry.getValue());
+                }
             }
 
             return conf;
