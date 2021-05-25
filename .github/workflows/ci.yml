@@ -39,9 +39,6 @@ jobs:
         with:
           name: jar
           path: vtl-lab/target
-      - run: ls
-      - run: cd vtl-lab/target
-      - run: ls
       - name: Docker meta
         id: docker_meta
         uses: crazy-max/ghaction-docker-meta@v1.8.4
