@@ -90,21 +90,13 @@ public class SparkEngine {
         Bindings jsonBindings = body.getBindings();
         Bindings toSave = body.getToSave();
 
+        Path path = Path.of(System.getenv("SPARK_CONF_DIR"), "spark.conf");
+        SparkConf conf = loadSparkConfig(path.normalize());
+
         SparkSession.Builder sparkBuilder = SparkSession.builder()
-                .appName("vtl-lab")
+                .config(conf)
                 .master(sparkProperties.getMaster());
 
-        sparkBuilder.config("spark.dynamicAllocation.enabled", sparkProperties.getDynamicAllocationEnabled());
-        sparkBuilder.config("spark.dynamicAllocation.shuffleTracking.enabled", sparkProperties.getDynamicAllocationEnabled());
-        sparkBuilder.config("spark.dynamicAllocation.minExecutors", sparkProperties.getDynamicAllocationMinExecutors());
-
-
-        sparkBuilder.config("spark.hadoop.fs.s3a.access.key", sparkProperties.getAccessKey());
-        sparkBuilder.config("spark.hadoop.fs.s3a.secret.key", sparkProperties.getSecretKey());
-        sparkBuilder.config("spark.hadoop.fs.s3a.connection.ssl.enabled", sparkProperties.getSslEnabled());
-        sparkBuilder.config("spark.hadoop.fs.s3a.session.token", sparkProperties.getSessionToken());
-        sparkBuilder.config("spark.hadoop.fs.s3a.endpoint", sparkProperties.getSessionEndpoint());
-        sparkBuilder.config("spark.hadoop.fs.s3a.path.style.access", true);
         // Note: all the dependencies are required for deserialization.
         // See https://stackoverflow.com/questions/28079307
         sparkBuilder.config("spark.jars", String.join(",",
@@ -153,7 +145,7 @@ public class SparkEngine {
         Bindings toSave = body.getToSave();
 
         Path path = Path.of(System.getenv("SPARK_CONF_DIR"), "spark.conf");
-        SparkConf conf = loadSparkConfig(path);
+        SparkConf conf = loadSparkConfig(path.normalize());
 
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .config(conf)
@@ -206,33 +198,13 @@ public class SparkEngine {
         String data = parquetPaths.getData();
         String target = parquetPaths.getTarget();
 
+        Path path = Path.of(System.getenv("SPARK_CONF_DIR"), "spark.conf");
+        SparkConf conf = loadSparkConfig(path.normalize());
+
         SparkSession.Builder sparkBuilder = SparkSession.builder()
-                .appName("vtl-lab")
+                .config(conf)
                 .master("k8s://https://kubernetes.default.svc.cluster.local:443");
-
-        sparkBuilder.config("spark.kubernetes.container.image.pullPolicy", sparkProperties.getKubernetesContainerImagePullPolicy());
-        sparkBuilder.config("spark.kubernetes.container.image", sparkProperties.getKubernetesContainerImage());
-
-        sparkBuilder.config("spark.dynamicAllocation.enabled", sparkProperties.getDynamicAllocationEnabled());
-        sparkBuilder.config("spark.dynamicAllocation.shuffleTracking.enabled", sparkProperties.getDynamicAllocationEnabled());
-        sparkBuilder.config("spark.dynamicAllocation.minExecutors", sparkProperties.getDynamicAllocationMinExecutors());
-
-        sparkBuilder.config("spark.driver.memory", sparkProperties.getDriverMemory());
-        sparkBuilder.config("spark.executor.memory", sparkProperties.getExecutorMemory());
-        sparkBuilder.config("spark.rpc.message.maxSize", 2046);
-
-        sparkBuilder.config("spark.kubernetes.namespace", sparkProperties.getKubernetesNamespace());
-        sparkBuilder.config("spark.kubernetes.executor.request.cores", sparkProperties.getKubernetesExecutorRequestCores());
-        sparkBuilder.config("spark.kubernetes.driver.pod.name", sparkProperties.getKubernetesDriverPodName());
-
-        sparkBuilder.config("spark.hadoop.fs.s3a.access.key", sparkProperties.getAccessKey());
-        sparkBuilder.config("spark.hadoop.fs.s3a.secret.key", sparkProperties.getSecretKey());
-        sparkBuilder.config("spark.hadoop.fs.s3a.connection.ssl.enabled", sparkProperties.getSslEnabled());
-        sparkBuilder.config("spark.hadoop.fs.s3a.session.token", sparkProperties.getSessionToken());
-        sparkBuilder.config("spark.hadoop.fs.s3a.endpoint", sparkProperties.getSessionEndpoint());
-        sparkBuilder.config("spark.hadoop.fs.s3a.path.style.access", true);
-        sparkBuilder.config("spark.hadoop.fs.s3a.aws.credentials.provider","org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
-
+        
         // Note: all the dependencies are required for deserialization.
         // See https://stackoverflow.com/questions/28079307
         sparkBuilder.config("spark.jars", String.join(",",
