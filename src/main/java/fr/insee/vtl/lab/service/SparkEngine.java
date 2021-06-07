@@ -204,7 +204,7 @@ public class SparkEngine {
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .config(conf)
                 .master("k8s://https://kubernetes.default.svc.cluster.local:443");
-        
+
         // Note: all the dependencies are required for deserialization.
         // See https://stackoverflow.com/questions/28079307
         sparkBuilder.config("spark.jars", String.join(",",
