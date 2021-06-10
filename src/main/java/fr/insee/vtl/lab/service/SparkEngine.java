@@ -2,7 +2,6 @@ package fr.insee.vtl.lab.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import fr.insee.vtl.lab.configuration.properties.SparkProperties;
 import fr.insee.vtl.lab.model.Body;
 import fr.insee.vtl.lab.model.ParquetPaths;
 import fr.insee.vtl.lab.model.User;
@@ -23,8 +22,6 @@ import org.springframework.stereotype.Service;
 
 import javax.script.*;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -42,10 +39,28 @@ public class SparkEngine {
     };
 
     @Autowired
-    private SparkProperties sparkProperties;
-
-    @Autowired
     private ObjectMapper objectMapper;
+
+    public SparkSession initSpark(String master) {
+        Path path = Path.of(System.getenv("SPARK_CONF_DIR"), "spark.conf");
+        SparkConf conf = loadSparkConfig(path.normalize());
+
+        SparkSession.Builder sparkBuilder = SparkSession.builder()
+                .config(conf)
+                .master(master);
+
+        // Note: all the dependencies are required for deserialization.
+        // See https://stackoverflow.com/questions/28079307
+        sparkBuilder.config("spark.jars", String.join(",",
+                "/vtl-spark.jar",
+                "/vtl-model.jar",
+                "/vtl-jackson.jar",
+                "/vtl-parser.jar",
+                "/vtl-engine.jar"
+        ));
+
+        return sparkBuilder.getOrCreate();
+    }
 
     public Bindings executeLocalSpark(User user, Body body) throws ScriptException {
         String script = body.getVtlScript();
@@ -95,7 +110,7 @@ public class SparkEngine {
 
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .config(conf)
-                .master(sparkProperties.getMaster());
+                .master("local");
 
         // Note: all the dependencies are required for deserialization.
         // See https://stackoverflow.com/questions/28079307
@@ -144,27 +159,10 @@ public class SparkEngine {
         Bindings jsonBindings = body.getBindings();
         Bindings toSave = body.getToSave();
 
-        Path path = Path.of(System.getenv("SPARK_CONF_DIR"), "spark.conf");
-        SparkConf conf = loadSparkConfig(path.normalize());
+        SparkSession spark = initSpark("k8s://https://kubernetes.default.svc.cluster.local:443");
 
-        SparkSession.Builder sparkBuilder = SparkSession.builder()
-                .config(conf)
-                .master("k8s://https://kubernetes.default.svc.cluster.local:443");
-
-        // Note: all the dependencies are required for deserialization.
-        // See https://stackoverflow.com/questions/28079307
-        sparkBuilder.config("spark.jars", String.join(",",
-                "/vtl-spark.jar",
-                "/vtl-model.jar",
-                "/vtl-jackson.jar",
-                "/vtl-parser.jar",
-                "/vtl-engine.jar"
-        ));
-
-        SparkSession spark = sparkBuilder.getOrCreate();
-
+        // Load the datasets.
         Bindings updatedBindings = new SimpleBindings();
-
         jsonBindings.forEach((k, v) -> {
             Dataset<Row> dataset = spark.read().parquet(v + "/parquet");
             try {

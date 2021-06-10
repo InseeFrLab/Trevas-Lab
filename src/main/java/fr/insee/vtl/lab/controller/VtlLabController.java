@@ -82,14 +82,16 @@ public class VtlLabController {
     }
 
     @GetMapping("/job/{jobId}")
-    public Job getJob(Authentication auth, @PathVariable UUID jobId) {
+    public Job getJob(@PathVariable UUID jobId) {
         if (!jobs.containsKey(jobId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
         return jobs.get(jobId);
     }
 
+    // TODO: Move to service.
     // TODO: Clean up the job map based on the date.
+    // TODO: Refactor to use the ScriptEngine inside the user session.
     public Job executeJob(Body body, VtlJob execution) {
         Job job = new Job();
         executorService.submit(() -> {
@@ -110,6 +112,7 @@ public class VtlLabController {
                         //writeDataset((Dataset) bindings.get(variableName), output.location);
                         output.status = Status.DONE;
                     } catch (Exception ex) {
+                        job.status = Status.FAILED;
                         output.status = Status.FAILED;
                         output.error = ex;
                     }
