@@ -48,10 +48,13 @@ public class Utils {
         return output;
     }
 
-    public static SparkConf loadSparkConfig(Path path) {
+    public static SparkConf loadSparkConfig(String stringPath) {
         try {
             SparkConf conf = new SparkConf(true);
-            org.apache.spark.util.Utils.loadDefaultSparkProperties(conf, path.toAbsolutePath().toString());
+            if (stringPath != null) {
+                Path path = Path.of(stringPath, "spark.conf");
+                org.apache.spark.util.Utils.loadDefaultSparkProperties(conf, path.normalize().toAbsolutePath().toString());
+            }
 
             for (Map.Entry<String, String> entry : System.getenv().entrySet()) {
                 var normalizedName = entry.getKey().toLowerCase().replace("_", ".");
@@ -62,7 +65,7 @@ public class Utils {
 
             return conf;
         } catch (Exception ex) {
-            logger.error("could not load spark config from {}", path, ex);
+            logger.error("could not load spark config from {}", stringPath, ex);
             throw ex;
         }
     }

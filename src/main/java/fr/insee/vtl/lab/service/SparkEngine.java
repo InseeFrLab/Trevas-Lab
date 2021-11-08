@@ -42,8 +42,7 @@ public class SparkEngine {
     private ObjectMapper objectMapper;
 
     public SparkSession initSpark(String master) {
-        Path path = Path.of(System.getenv("SPARK_CONF_DIR"), "spark.conf");
-        SparkConf conf = loadSparkConfig(path.normalize());
+        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
 
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .config(conf)
@@ -105,8 +104,7 @@ public class SparkEngine {
         Bindings jsonBindings = body.getBindings();
         Bindings toSave = body.getToSave();
 
-        Path path = Path.of(System.getenv("SPARK_CONF_DIR"), "spark.conf");
-        SparkConf conf = loadSparkConfig(path.normalize());
+        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
 
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .config(conf)
@@ -196,8 +194,7 @@ public class SparkEngine {
         String data = parquetPaths.getData();
         String target = parquetPaths.getTarget();
 
-        Path path = Path.of(System.getenv("SPARK_CONF_DIR"), "spark.conf");
-        SparkConf conf = loadSparkConfig(path.normalize());
+        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
 
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .config(conf)
