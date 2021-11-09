@@ -1,10 +1,13 @@
 package fr.insee.vtl.lab.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.insee.vtl.lab.configuration.security.UserProvider;
 import fr.insee.vtl.lab.model.*;
 import fr.insee.vtl.lab.service.InMemoryEngine;
 import fr.insee.vtl.lab.service.SessionProvider;
 import fr.insee.vtl.lab.service.SparkEngine;
+import fr.insee.vtl.spark.SparkDataset;
+import org.apache.spark.sql.SparkSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +22,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static fr.insee.vtl.lab.utils.Utils.writeSparkDataset;
 
 @RestController
 @RequestMapping("/api/vtl")
@@ -36,12 +41,14 @@ public class VtlLabController {
     @Autowired
     private SessionProvider sessionProvider;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     private final ExecutorService executorService = Executors.newCachedThreadPool();
     private final Map<UUID, Job> jobs = new HashMap<>();
 
     @PostMapping("/in-memory")
     public Bindings executeInMemory(Authentication auth, @RequestBody Body body) {
-        Map<String, Object> session = sessionProvider.getSession(auth);
         return inMemoryEngine.executeInMemory(userProvider.getUser(auth), body);
     }
 
@@ -71,14 +78,14 @@ public class VtlLabController {
     }
 
     @PostMapping("/spark-kube-new")
-    public ResponseEntity<Void> executeNew(Authentication auth, @RequestBody Body body) {
+    public ResponseEntity<UUID> executeNew(Authentication auth, @RequestBody Body body) {
         var job = executeJob(body, () -> {
             return sparkEngine.executeLocalSpark(userProvider.getUser(auth), body);
         });
         jobs.put(job.id, job);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .header("Location", "/api/vtl/job/" + job.id)
-                .build();
+                .body(job.id);
     }
 
     @GetMapping("/job/{jobId}")
@@ -100,6 +107,7 @@ public class VtlLabController {
                 for (String name : body.getToSave().keySet()) {
                     var output = new Output();
                     output.location = (String) body.getToSave().get(name);
+                    job.outputs.put(name, output);
                 }
                 job.status = Status.RUNNING;
                 Bindings bindings = execution.execute();
@@ -107,9 +115,11 @@ public class VtlLabController {
                     final var output = job.outputs.get(variableName);
                     try {
                         output.status = Status.RUNNING;
-                        Thread.sleep(30000);
-                        // TODO: Refactor
-                        //writeDataset((Dataset) bindings.get(variableName), output.location);
+                        SparkSession.Builder sparkBuilder = SparkSession.builder()
+                                .appName("vtl-lab")
+                                .master("local");
+                        SparkSession spark = sparkBuilder.getOrCreate();
+                        writeSparkDataset(objectMapper, spark, output.location, (SparkDataset) bindings.get(variableName));
                         output.status = Status.DONE;
                     } catch (Exception ex) {
                         job.status = Status.FAILED;

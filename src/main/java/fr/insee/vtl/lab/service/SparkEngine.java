@@ -94,9 +94,9 @@ public class SparkEngine {
         engine.eval(script);
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
         Bindings dsBindings = Utils.getBindings(outputBindings);
-        Bindings sizedBindings = Utils.getBindings(outputBindings, true);
-        Utils.writeSparkDataset(dsBindings, toSave, objectMapper, spark);
-        return sizedBindings;
+        //Bindings sizedBindings = Utils.getBindings(outputBindings, true);
+        //Utils.writeSparkDatasets(dsBindings, toSave, objectMapper, spark);
+        return dsBindings;
     }
 
     public Bindings executeSparkStatic(User user, Body body) throws ScriptException {
@@ -148,7 +148,7 @@ public class SparkEngine {
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
         Bindings dsBindings = Utils.getBindings(outputBindings);
         Bindings sizedBindings = Utils.getBindings(outputBindings, true);
-        Utils.writeSparkDataset(dsBindings, toSave, objectMapper, spark);
+        Utils.writeSparkDatasets(dsBindings, toSave, objectMapper, spark);
         return sizedBindings;
     }
 
@@ -162,6 +162,7 @@ public class SparkEngine {
         // Load the datasets.
         Bindings updatedBindings = new SimpleBindings();
         jsonBindings.forEach((k, v) -> {
+            // TODO: Extract to own method. Depends on spark.
             Dataset<Row> dataset = spark.read().parquet(v + "/parquet");
             try {
                 byte[] row = spark.read()
@@ -184,7 +185,7 @@ public class SparkEngine {
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
         Bindings dsBindings = Utils.getBindings(outputBindings);
         Bindings sizedBindings = Utils.getBindings(outputBindings, true);
-        Utils.writeSparkDataset(dsBindings, toSave, objectMapper, spark);
+        Utils.writeSparkDatasets(dsBindings, toSave, objectMapper, spark);
         return sizedBindings;
     }
 

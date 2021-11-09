@@ -16,9 +16,6 @@ import javax.script.*;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-
-import static java.util.Optional.*;
 
 public class Utils {
 
@@ -83,24 +80,28 @@ public class Utils {
         return output;
     }
 
-    public static void writeSparkDataset(Bindings bindings, Bindings toSave,
-                                         ObjectMapper objectMapper,
-                                         SparkSession spark) {
-        toSave.forEach((k, v) -> {
-            SparkDataset dataset = (SparkDataset) bindings.get(k);
-            Dataset<Row> sparkDataset = dataset.getSparkDataset();
-            sparkDataset.write().mode(SaveMode.ErrorIfExists).parquet(v + "/parquet");
-            // Trick to write json thanks to spark
-            String json = "";
-            try {
-                json = objectMapper.writeValueAsString(dataset.getDataStructure().values());
-            } catch (JsonProcessingException e) {
-                e.printStackTrace();
-            }
-            JavaSparkContext.fromSparkContext(spark.sparkContext())
-                    .parallelize(List.of(json.getBytes()))
-                    .coalesce(1)
-                    .saveAsTextFile(v + "/structure.json");
+    public static void writeSparkDatasets(Bindings bindings, Bindings toSave,
+                                          ObjectMapper objectMapper,
+                                          SparkSession spark) {
+        toSave.forEach((name, location) -> {
+            SparkDataset dataset = (SparkDataset) bindings.get(name);
+            writeSparkDataset(objectMapper, spark, (String) location, dataset);
         });
+    }
+
+    public static void writeSparkDataset(ObjectMapper objectMapper, SparkSession spark, String location, SparkDataset dataset) {
+        Dataset<Row> sparkDataset = dataset.getSparkDataset();
+        sparkDataset.write().mode(SaveMode.ErrorIfExists).parquet(location + "/parquet");
+        // Trick to write json thanks to spark
+        String json = "";
+        try {
+            json = objectMapper.writeValueAsString(dataset.getDataStructure().values());
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+        JavaSparkContext.fromSparkContext(spark.sparkContext())
+                .parallelize(List.of(json.getBytes()))
+                .coalesce(1)
+                .saveAsTextFile(location + "/structure.json");
     }
 }
