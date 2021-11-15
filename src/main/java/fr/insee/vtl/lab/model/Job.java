@@ -1,5 +1,8 @@
 package fr.insee.vtl.lab.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import javax.script.Bindings;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -10,4 +13,7 @@ public class Job {
     public Status status = Status.READY;
     public Map<String, Output> outputs = new HashMap<>();
     public Exception error;
+
+    @JsonIgnore
+    public Bindings bindings;
 }

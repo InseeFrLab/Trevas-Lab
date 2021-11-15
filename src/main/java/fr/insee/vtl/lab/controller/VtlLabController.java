@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.insee.vtl.lab.configuration.security.UserProvider;
 import fr.insee.vtl.lab.model.*;
 import fr.insee.vtl.lab.service.InMemoryEngine;
-import fr.insee.vtl.lab.service.SessionProvider;
 import fr.insee.vtl.lab.service.SparkEngine;
 import fr.insee.vtl.spark.SparkDataset;
 import org.apache.spark.sql.SparkSession;
@@ -29,6 +28,9 @@ import static fr.insee.vtl.lab.utils.Utils.writeSparkDataset;
 @RequestMapping("/api/vtl")
 public class VtlLabController {
 
+    private final ExecutorService executorService = Executors.newCachedThreadPool();
+    private final Map<UUID, Job> jobs = new HashMap<>();
+
     @Autowired
     private UserProvider userProvider;
 
@@ -39,32 +41,11 @@ public class VtlLabController {
     private SparkEngine sparkEngine;
 
     @Autowired
-    private SessionProvider sessionProvider;
-
-    @Autowired
     private ObjectMapper objectMapper;
-
-    private final ExecutorService executorService = Executors.newCachedThreadPool();
-    private final Map<UUID, Job> jobs = new HashMap<>();
 
     @PostMapping("/in-memory")
     public Bindings executeInMemory(Authentication auth, @RequestBody Body body) {
         return inMemoryEngine.executeInMemory(userProvider.getUser(auth), body);
-    }
-
-    @PostMapping("/spark")
-    public Bindings executeSpark(Authentication auth, @RequestBody Body body) throws ScriptException {
-        return sparkEngine.executeLocalSpark(userProvider.getUser(auth), body);
-    }
-
-    @PostMapping("/spark-static")
-    public Bindings executeSparkStatic(Authentication auth, @RequestBody Body body) throws ScriptException {
-        return sparkEngine.executeSparkStatic(userProvider.getUser(auth), body);
-    }
-
-    @PostMapping("/spark-kube")
-    public Bindings executeSparkKube(Authentication auth, @RequestBody Body body) throws ScriptException {
-        return sparkEngine.executeSparkKube(userProvider.getUser(auth), body);
     }
 
     @PostMapping("/build-parquet")
@@ -72,16 +53,34 @@ public class VtlLabController {
         return sparkEngine.buildParquet(userProvider.getUser(auth), parquetPaths);
     }
 
-    @FunctionalInterface
-    interface VtlJob {
-        Bindings execute() throws ScriptException;
-    }
-
-    @PostMapping("/spark-kube-new")
-    public ResponseEntity<UUID> executeNew(Authentication auth, @RequestBody Body body) {
-        var job = executeJob(body, () -> {
-            return sparkEngine.executeLocalSpark(userProvider.getUser(auth), body);
-        });
+    @PostMapping("/execute")
+    public ResponseEntity<UUID> executeNew(
+            Authentication auth,
+            @RequestBody Body body,
+            @RequestParam("mode") ExecutionMode mode,
+            @RequestParam("type") ExecutionType type
+    ) {
+        Job job;
+        if (mode == ExecutionMode.MEMORY) {
+            job = executeJob(body, () -> inMemoryEngine.executeInMemory(userProvider.getUser(auth), body));
+        } else {
+            switch (type) {
+                case LOCAL:
+                    job = executeJob(body, () -> sparkEngine.executeLocalSpark(userProvider.getUser(auth), body));
+                    break;
+                case CLUSTER_STATIC:
+                    job = executeJob(body, () -> sparkEngine.executeSparkStatic(userProvider.getUser(auth), body));
+                    break;
+                case CLUSTER_KUBERNETES:
+                    job = executeJob(body, () -> sparkEngine.executeSparkKube(userProvider.getUser(auth), body));
+                    break;
+                default:
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
+                            "Unsupported execution type: " + type
+                    );
+            }
+        }
         jobs.put(job.id, job);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .header("Location", "/api/vtl/job/" + job.id)
@@ -94,6 +93,14 @@ public class VtlLabController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
         return jobs.get(jobId);
+    }
+
+    @GetMapping("/job/{jobId}/bindings")
+    public Bindings getJobBinding(@PathVariable UUID jobId) {
+        if (!jobs.containsKey(jobId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        return jobs.get(jobId).bindings;
     }
 
     // TODO: Move to service.
@@ -110,7 +117,7 @@ public class VtlLabController {
                     job.outputs.put(name, output);
                 }
                 job.status = Status.RUNNING;
-                Bindings bindings = execution.execute();
+                job.bindings = execution.execute();
                 for (String variableName : job.outputs.keySet()) {
                     final var output = job.outputs.get(variableName);
                     try {
@@ -119,7 +126,7 @@ public class VtlLabController {
                                 .appName("vtl-lab")
                                 .master("local");
                         SparkSession spark = sparkBuilder.getOrCreate();
-                        writeSparkDataset(objectMapper, spark, output.location, (SparkDataset) bindings.get(variableName));
+                        writeSparkDataset(objectMapper, spark, output.location, (SparkDataset) job.bindings.get(variableName));
                         output.status = Status.DONE;
                     } catch (Exception ex) {
                         job.status = Status.FAILED;
@@ -134,6 +141,22 @@ public class VtlLabController {
             }
         });
         return job;
+    }
+
+    public enum ExecutionMode {
+        MEMORY,
+        SPARK
+    }
+
+    public enum ExecutionType {
+        LOCAL,
+        CLUSTER_STATIC,
+        CLUSTER_KUBERNETES
+    }
+
+    @FunctionalInterface
+    interface VtlJob {
+        Bindings execute() throws ScriptException;
     }
 
 }
