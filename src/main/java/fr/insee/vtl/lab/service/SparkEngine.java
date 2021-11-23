@@ -2,7 +2,6 @@ package fr.insee.vtl.lab.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import fr.insee.vtl.lab.configuration.properties.SparkProperties;
 import fr.insee.vtl.lab.model.Body;
 import fr.insee.vtl.lab.model.ParquetPaths;
 import fr.insee.vtl.lab.model.User;
@@ -23,10 +22,6 @@ import org.springframework.stereotype.Service;
 
 import javax.script.*;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
@@ -42,35 +37,36 @@ public class SparkEngine {
     };
 
     @Autowired
-    private SparkProperties sparkProperties;
-
-    @Autowired
     private ObjectMapper objectMapper;
 
-    public Bindings executeLocalSpark(User user, Body body) throws ScriptException {
-        String script = body.getVtlScript();
-        Bindings jsonBindings = body.getBindings();
-        Bindings toSave = body.getToSave();
 
-        SparkSession.Builder sparkBuilder = SparkSession.builder()
-                .appName("vtl-lab")
-                .master("local");
+    private SparkDataset readParquetDataset(SparkSession spark, String path) {
+        try {
+            Dataset<Row> dataset = spark.read().parquet(path + "/parquet");
+            byte[] row = spark.read()
+                    .format("binaryFile")
+                    .load(path + "/structure.json")
+                    .first()
+                    .getAs("content");
+            List<Structured.Component> components = objectMapper.readValue(row, COMPONENT_TYPE);
+            Structured.DataStructure structure = new Structured.DataStructure(components);
+            return new SparkDataset(dataset, structure);
+        } catch (IOException e) {
+            throw new RuntimeException("could not read file " + path, e);
+        }
+    }
 
-        SparkSession spark = sparkBuilder.getOrCreate();
-
+    public Bindings executeSpark(SparkSession spark, Bindings bindings, String script) throws ScriptException {
         Bindings updatedBindings = new SimpleBindings();
-
-        jsonBindings.forEach((k, v) -> {
-            Dataset<Row> dataset = spark.read().parquet(v + "/parquet");
+        bindings.forEach((name, value) -> {
             try {
-                List<Structured.Component> components =
-                        objectMapper.readValue(Paths.get((String) v, "structure.json")
-                                        .toFile(),
-                                new TypeReference<>() {
-                                });
-                Structured.DataStructure structure = new Structured.DataStructure(components);
-                updatedBindings.put(k, new SparkDataset(dataset, structure));
-            } catch (IOException e) {
+                if (value instanceof String) {
+                    SparkDataset sparkDataset = readParquetDataset(spark, (String) value);
+                    updatedBindings.put(name, sparkDataset);
+                } else {
+                    updatedBindings.put(name, value);
+                }
+            } catch (Exception e) {
                 logger.warn("Parquet loading failed: ", e);
             }
         });
@@ -79,23 +75,32 @@ public class SparkEngine {
 
         engine.eval(script);
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
-        Bindings dsBindings = Utils.getBindings(outputBindings);
-        Bindings sizedBindings = Utils.getBindings(outputBindings, true);
-        Utils.writeSparkDataset(dsBindings, toSave, objectMapper, spark);
-        return sizedBindings;
+        //Bindings sizedBindings = Utils.getBindings(outputBindings, true);
+        //Utils.writeSparkDatasets(dsBindings, toSave, objectMapper, spark);
+        return Utils.getBindings(outputBindings);
+    }
+
+    public Bindings executeLocalSpark(User user, Body body) throws ScriptException {
+        String script = body.getVtlScript();
+        Bindings jsonBindings = body.getBindings();
+
+        SparkSession.Builder sparkBuilder = SparkSession.builder()
+                .appName("vtl-lab")
+                .master("local");
+
+        SparkSession spark = sparkBuilder.getOrCreate();
+        return executeSpark(spark, jsonBindings, script);
     }
 
     public Bindings executeSparkStatic(User user, Body body) throws ScriptException {
         String script = body.getVtlScript();
         Bindings jsonBindings = body.getBindings();
-        Bindings toSave = body.getToSave();
 
-        Path path = Path.of(System.getenv("SPARK_CONF_DIR"), "spark.conf");
-        SparkConf conf = loadSparkConfig(path.normalize());
+        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
 
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .config(conf)
-                .master(sparkProperties.getMaster());
+                .master("local");
 
         // Note: all the dependencies are required for deserialization.
         // See https://stackoverflow.com/questions/28079307
@@ -108,45 +113,11 @@ public class SparkEngine {
         ));
 
         SparkSession spark = sparkBuilder.getOrCreate();
-
-        Bindings updatedBindings = new SimpleBindings();
-
-        jsonBindings.forEach((k, v) -> {
-            try {
-                Dataset<Row> dataset = spark.read().parquet(v + "/parquet");
-                byte[] row = spark.read()
-                        .format("binaryFile")
-                        .load(v + "/structure.json")
-                        .first()
-                        .getAs("content");
-
-
-                List<Structured.Component> components = objectMapper.readValue(row, COMPONENT_TYPE);
-                Structured.DataStructure structure = new Structured.DataStructure(components);
-                updatedBindings.put(k, new SparkDataset(dataset, structure));
-            } catch (Exception e) {
-                logger.warn("Parquet loading failed: ", e);
-            }
-        });
-
-        ScriptEngine engine = Utils.initEngineWithSpark(updatedBindings, spark);
-
-        engine.eval(script);
-        Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
-        Bindings dsBindings = Utils.getBindings(outputBindings);
-        Bindings sizedBindings = Utils.getBindings(outputBindings, true);
-        Utils.writeSparkDataset(dsBindings, toSave, objectMapper, spark);
-        return sizedBindings;
+        return executeSpark(spark, jsonBindings, script);
     }
 
     public Bindings executeSparkKube(User user, Body body) throws ScriptException {
-        String script = body.getVtlScript();
-        Bindings jsonBindings = body.getBindings();
-        Bindings toSave = body.getToSave();
-
-        Path path = Path.of(System.getenv("SPARK_CONF_DIR"), "spark.conf");
-        SparkConf conf = loadSparkConfig(path.normalize());
-
+        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .config(conf)
                 .master("k8s://https://kubernetes.default.svc.cluster.local:443");
@@ -161,35 +132,10 @@ public class SparkEngine {
                 "/vtl-engine.jar"
         ));
 
+        String script = body.getVtlScript();
+        Bindings jsonBindings = body.getBindings();
         SparkSession spark = sparkBuilder.getOrCreate();
-
-        Bindings updatedBindings = new SimpleBindings();
-
-        jsonBindings.forEach((k, v) -> {
-            Dataset<Row> dataset = spark.read().parquet(v + "/parquet");
-            try {
-                byte[] row = spark.read()
-                        .format("binaryFile")
-                        .load(v + "/structure.json")
-                        .first()
-                        .getAs("content");
-
-                List<Structured.Component> components = objectMapper.readValue(row, COMPONENT_TYPE);
-                Structured.DataStructure structure = new Structured.DataStructure(components);
-                updatedBindings.put(k, new SparkDataset(dataset, structure));
-            } catch (Exception e) {
-                logger.warn("Parquet loading failed: ", e);
-            }
-        });
-
-        ScriptEngine engine = Utils.initEngineWithSpark(updatedBindings, spark);
-
-        engine.eval(script);
-        Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
-        Bindings dsBindings = Utils.getBindings(outputBindings);
-        Bindings sizedBindings = Utils.getBindings(outputBindings, true);
-        Utils.writeSparkDataset(dsBindings, toSave, objectMapper, spark);
-        return sizedBindings;
+        return executeSpark(spark, jsonBindings, script);
     }
 
     public String buildParquet(User user, ParquetPaths parquetPaths) {
@@ -198,8 +144,7 @@ public class SparkEngine {
         String data = parquetPaths.getData();
         String target = parquetPaths.getTarget();
 
-        Path path = Path.of(System.getenv("SPARK_CONF_DIR"), "spark.conf");
-        SparkConf conf = loadSparkConfig(path.normalize());
+        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
 
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .config(conf)
@@ -238,7 +183,7 @@ public class SparkEngine {
         StructType structType = SparkDataset.toSparkSchema(dsStructure);
 
         Dataset<Row> dataset = spark.read()
-                .options(Map.of("header", "true", "delimiter",";"))
+                .options(Map.of("header", "true", "delimiter", ";"))
                 .schema(structType)
                 .csv(data);
         dataset.write().mode(SaveMode.Overwrite).parquet(target);
