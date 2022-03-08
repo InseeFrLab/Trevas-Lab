@@ -40,12 +40,12 @@
         <dependency>
             <groupId>fr.insee.trevas</groupId>
             <artifactId>vtl-engine</artifactId>
-            <version>0.2.1</version>
+            <version>0.3.0</version>
         </dependency>
         <dependency>
             <groupId>fr.insee.trevas</groupId>
             <artifactId>vtl-spark</artifactId>
-            <version>0.2.1</version>
+            <version>0.3.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -56,20 +56,24 @@
         <dependency>
             <groupId>fr.insee.trevas</groupId>
             <artifactId>vtl-jackson</artifactId>
-            <version>0.2.1</version>
+            <version>0.3.0</version>
             <scope>compile</scope>
         </dependency>
 
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-aws</artifactId>
-            <version>3.2.2</version>
+            <version>3.3.1</version>
         </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-client</artifactId>
-            <version>3.2.2</version>
+            <version>3.3.1</version>
             <exclusions>
+                <exclusion>
+                    <groupId>com.thoughtworks.paranamer</groupId>
+                    <artifactId>paranamer</artifactId>
+                </exclusion>
                 <exclusion>
                     <groupId>com.squareup.okio</groupId>
                     <artifactId>okio</artifactId>
@@ -79,7 +83,7 @@
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-kubernetes_2.12</artifactId>
-            <version>3.1.2</version>
+            <version>3.2.1</version>
         </dependency>
 
         <dependency>
