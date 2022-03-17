@@ -1,0 +1,95 @@
+openapi: 3.0.3
+servers:
+  # Added by API Auto Mocking Plugin
+  - description: SwaggerHub API Auto Mocking
+    url: https://virtserver.swaggerhub.com/FranckCo/Trevas-API/0.0.1
+  - description: Localhost server
+    url: http://localhost/api/vtl
+    
+info:
+  description: A simple API wrapping the Trevas VTL engine
+  version: "0.0.1"
+  title: Trevas API
+  contact:
+    email: franck.cotton@insee.fr
+  license:
+    name: MIT
+    url: 'https://opensource.org/licenses/MIT'
+tags:
+  - name: execution
+    description: Execution of VTL scripts
+  - name: monitoring
+    description: Monitoring of submitted execution jobs
+paths:
+  /job/{jobId}:
+    get:
+      tags:
+       - monitoring
+      summary: Get monitoring information on a job
+      parameters:
+        - name: jobId
+          in: path
+          description: Job identifier
+          required: true
+          schema:
+            $ref: '#/components/schemas/JobID'
+      responses:
+        '200':
+          description: Job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '404':
+          description: Unkown job identifier
+  /in-memory:
+    post:
+      tags:
+        - execution
+      summary: Executes a VTL script in memory
+      operationId: executeInMemory
+      description: Receives a script and bindings, returns output bindings
+      responses:
+        '200':
+          description: Script executed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bindings'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Body'
+        description: VTL script and input bindings
+components:
+  schemas:
+# With version 3.1.0 of OpenAPI, JobID can be described as
+#         type: object
+#         propertyNames:
+#           format: uuid
+    JobID:
+      type: string
+      format: uuid
+      example: d290f1ee-6c54-4b01-90e6-d701748f0851
+    Job:
+      type: object
+      required:
+        - id
+        - status
+# Complete properties
+      properties:
+        id:
+          $ref: '#/components/schemas/JobID'
+        status:
+          type: string
+    Bindings:
+      type: string
+# Complete description of Bindings, which has type javax.script.Bindings
+    Body:
+      type: object
+      properties:
+        script:
+          type: string
+        bindings:
+          $ref: '#/components/schemas/Bindings'
