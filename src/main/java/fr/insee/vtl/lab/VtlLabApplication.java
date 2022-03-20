@@ -20,5 +20,4 @@ public class VtlLabApplication {
         return new ObjectMapper()
                 .registerModule(new TrevasModule());
     }
-
 }

@@ -4,12 +4,12 @@ import javax.script.Bindings;
 
 public class SqlSpec {
 
-    private String type;  // useful?
-    private String url;
-    private String user;
-    private String password;
-    private String query;
-    private String dbtype;
+    public String type;  // useful?
+    public String url;
+    public String user;
+    public String password;
+    public String query;
+    public String dbtype;
 
     public String getQuery() {
         return query;
