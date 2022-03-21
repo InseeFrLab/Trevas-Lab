@@ -3,8 +3,8 @@ package fr.insee.vtl.lab.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.insee.vtl.lab.configuration.security.UserProvider;
 import fr.insee.vtl.lab.model.*;
-import fr.insee.vtl.lab.service.InMemoryEngine;
-import fr.insee.vtl.lab.service.SparkEngine;
+import fr.insee.vtl.lab.service.InMemoryEngineV2;
+import fr.insee.vtl.lab.service.SparkEngineV2;
 import fr.insee.vtl.spark.SparkDataset;
 import org.apache.spark.sql.SparkSession;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,22 +29,22 @@ import static fr.insee.vtl.lab.utils.Utils.writeSparkDataset;
 public class VtlLabControllerV2 {
 
     private final ExecutorService executorService = Executors.newCachedThreadPool();
-    private final Map<UUID, Job> jobs = new HashMap<>();
+    private final Map<UUID, JobV2> jobs = new HashMap<>();
 
     @Autowired
     private UserProvider userProvider;
 
     @Autowired
-    private InMemoryEngine inMemoryEngine;
+    private InMemoryEngineV2 inMemoryEngine;
 
     @Autowired
-    private SparkEngine sparkEngine;
+    private SparkEngineV2 sparkEngine;
 
     @Autowired
     private ObjectMapper objectMapper;
 
     @PostMapping("/in-memory")
-    public Bindings executeInMemory(Authentication auth, @RequestBody Body body) {
+    public Bindings executeInMemory(Authentication auth, @RequestBody BodyV2 body) {
         return inMemoryEngine.executeInMemory(userProvider.getUser(auth), body);
     }
 
@@ -56,11 +56,11 @@ public class VtlLabControllerV2 {
     @PostMapping("/execute")
     public ResponseEntity<UUID> executeNew(
             Authentication auth,
-            @RequestBody Body body,
+            @RequestBody BodyV2 body,
             @RequestParam("mode") ExecutionMode mode,
             @RequestParam("type") ExecutionType type
     ) {
-        Job job;
+        JobV2 job;
         if (mode == ExecutionMode.MEMORY) {
             job = executeJob(body, () -> inMemoryEngine.executeInMemory(userProvider.getUser(auth), body));
         } else {
@@ -88,7 +88,7 @@ public class VtlLabControllerV2 {
     }
 
     @GetMapping("/job/{jobId}")
-    public Job getJob(@PathVariable UUID jobId) {
+    public JobV2 getJob(@PathVariable UUID jobId) {
         if (!jobs.containsKey(jobId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
@@ -106,8 +106,8 @@ public class VtlLabControllerV2 {
     // TODO: Move to service.
     // TODO: Clean up the job map based on the date.
     // TODO: Refactor to use the ScriptEngine inside the user session.
-    public Job executeJob(Body body, VtlJob execution) {
-        Job job = new Job();
+    public JobV2 executeJob(BodyV2 body, VtlJob execution) {
+        JobV2 job = new JobV2();
         executorService.submit(() -> {
             try {
                 job.definition = body;

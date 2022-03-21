@@ -44,6 +44,11 @@
         </dependency>
         <dependency>
             <groupId>fr.insee.trevas</groupId>
+            <artifactId>vtl-jdbc</artifactId>
+            <version>0.3.0</version>
+        </dependency>
+        <dependency>
+            <groupId>fr.insee.trevas</groupId>
             <artifactId>vtl-spark</artifactId>
             <version>0.3.0</version>
             <exclusions>
@@ -94,6 +99,12 @@
                     <artifactId>log4j</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.3.3</version>
         </dependency>
 
         <dependency>
