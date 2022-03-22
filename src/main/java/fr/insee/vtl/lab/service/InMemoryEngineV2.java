@@ -34,7 +34,11 @@ public class InMemoryEngineV2 {
 
         queriesForBindings.forEach((k, v) -> {
             try {
-                connection.set(DriverManager.getConnection(v.getUrl(), v.getUser(), v.getPassword()));
+                connection.set(DriverManager.getConnection(
+                        "jdbc:" + v.getUrl(),
+                        v.getUser(),
+                        v.getPassword())
+                );
                 statement.set(connection.get().createStatement());
             } catch (SQLException e) {
                 e.printStackTrace();
