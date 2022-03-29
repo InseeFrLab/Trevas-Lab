@@ -43,7 +43,7 @@ public class VtlLabControllerV2 {
     private ObjectMapper objectMapper;
 
     @PostMapping("/in-memory")
-    public Bindings executeInMemory(Authentication auth, @RequestBody BodyV2 body) {
+    public Bindings executeInMemory(Authentication auth, @RequestBody BodyV2 body) throws SQLException {
         return inMemoryEngine.executeInMemory(userProvider.getUser(auth), body);
     }
 
@@ -53,13 +53,12 @@ public class VtlLabControllerV2 {
     }
 
     @PostMapping("/jdbc")
-    public String getJDBC(Authentication auth, @RequestBody QueriesForBindings queriesForBindings) throws SQLException {
+    public ResponseEntity<EditVisualize> getJDBC(Authentication auth, @RequestBody QueriesForBindings queriesForBindings) throws SQLException {
         Connection connection;
         Statement statement = null;
         try {
             Class.forName("org.postgresql.Driver");
             connection = DriverManager.getConnection(
-//                    "jdbc:" + queriesForBindings.getUrl(),
                     "jdbc:" + queriesForBindings.getUrl(),
                     queriesForBindings.getUser(),
                     queriesForBindings.getPassword());
@@ -73,37 +72,42 @@ public class VtlLabControllerV2 {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        // TODO
-        List<Map<String, Object>> rows = new ArrayList<>();
+        // Structure
+        List<Map<String, Object>> structure = new ArrayList<>();
         ResultSetMetaData rsmd = resultSet.getMetaData();
         int columnCount = rsmd.getColumnCount();
 
-        while (resultSet.next()) {
-            // Represent a row in DB. Key: Column name, Value: Column value
+        for (int i = 1; i <= columnCount; i++) {
             Map<String, Object> row = new HashMap<>();
-            for (int i = 1; i <= columnCount; i++) {
-                // Note that the index is 1-based
-                String colName = rsmd.getColumnName(i);
-                Object colVal = resultSet.getObject(i);
-                row.put(colName, colVal);
-            }
-            rows.add(row);
+            String colName = rsmd.getColumnName(i);
+            row.put("name", colName);
+            String colType = JDBCType.valueOf(rsmd.getColumnType(i)).getName();
+            row.put("type", colType);
+            structure.add(row);
         }
 
-        System.out.println("");
+        // Data
+        List<List<Object>> points = new ArrayList<>();
+        while (resultSet.next()) {
+            List<Object> row = new ArrayList<>();
+            for (int i = 1; i <= columnCount; i++) {
+                Object colVal = resultSet.getObject(i);
+                row.add(colVal);
+            }
+            points.add(row);
+        }
 
-// Write the list of rows to output
-// Recommend to use jackson-ObjectMapper to streaming json directly to outputstream:
-//        response.setContentType("application/json");
-//        response.setCharacterEncoding("UTF-8");
-//        ObjectMapper objectMapper = new ObjectMapper();
-//        objectMapper.writeValue(response.getOutputStream(), rows);
+        EditVisualize editVisualize = new EditVisualize();
+        editVisualize.setDataStructure(structure);
+        editVisualize.setDataPoints(points);
+
         try {
             resultSet.close();
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return "";
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(editVisualize);
     }
 
     @PostMapping("/execute")
@@ -115,7 +119,17 @@ public class VtlLabControllerV2 {
     ) {
         JobV2 job;
         if (mode == ExecutionMode.MEMORY) {
-            job = executeJob(body, () -> inMemoryEngine.executeInMemory(userProvider.getUser(auth), body));
+            job = executeJob(body, () -> {
+                try {
+                    return inMemoryEngine.executeInMemory(userProvider.getUser(auth), body);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    throw new ResponseStatusException(
+                            HttpStatus.INTERNAL_SERVER_ERROR,
+                            "SQLException error: " + type
+                    );
+                }
+            });
         } else {
             switch (type) {
                 case LOCAL:
