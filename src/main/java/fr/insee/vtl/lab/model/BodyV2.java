@@ -8,7 +8,16 @@ public class BodyV2 {
     private String vtlScript;
     private Bindings bindings;
     private Map<String, QueriesForBindings> queriesForBindings;
+    private Map<String, S3ForBindings> s3ForBindings;
     private Bindings toSave;
+
+    public Map<String, S3ForBindings> getS3ForBindings() {
+        return s3ForBindings;
+    }
+
+    public void setS3ForBindings(Map<String, S3ForBindings> s3ForBindings) {
+        this.s3ForBindings = s3ForBindings;
+    }
 
     public String getVtlScript() {
         return vtlScript;
