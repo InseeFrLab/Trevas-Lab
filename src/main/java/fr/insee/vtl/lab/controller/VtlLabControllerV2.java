@@ -16,9 +16,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import javax.script.Bindings;
 import javax.script.ScriptException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.sql.*;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -51,6 +50,60 @@ public class VtlLabControllerV2 {
     @PostMapping("/build-parquet")
     public String buildParquet(Authentication auth, @RequestBody ParquetPaths parquetPaths) {
         return sparkEngine.buildParquet(userProvider.getUser(auth), parquetPaths);
+    }
+
+    @PostMapping("/jdbc")
+    public String getJDBC(Authentication auth, @RequestBody QueriesForBindings queriesForBindings) throws SQLException {
+        Connection connection;
+        Statement statement = null;
+        try {
+            Class.forName("org.postgresql.Driver");
+            connection = DriverManager.getConnection(
+//                    "jdbc:" + queriesForBindings.getUrl(),
+                    "jdbc:" + queriesForBindings.getUrl(),
+                    queriesForBindings.getUser(),
+                    queriesForBindings.getPassword());
+            statement = connection.createStatement();
+        } catch (SQLException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        ResultSet resultSet = null;
+        try {
+            resultSet = statement.executeQuery(queriesForBindings.getQuery());
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        // TODO
+        List<Map<String, Object>> rows = new ArrayList<>();
+        ResultSetMetaData rsmd = resultSet.getMetaData();
+        int columnCount = rsmd.getColumnCount();
+
+        while (resultSet.next()) {
+            // Represent a row in DB. Key: Column name, Value: Column value
+            Map<String, Object> row = new HashMap<>();
+            for (int i = 1; i <= columnCount; i++) {
+                // Note that the index is 1-based
+                String colName = rsmd.getColumnName(i);
+                Object colVal = resultSet.getObject(i);
+                row.put(colName, colVal);
+            }
+            rows.add(row);
+        }
+
+        System.out.println("");
+
+// Write the list of rows to output
+// Recommend to use jackson-ObjectMapper to streaming json directly to outputstream:
+//        response.setContentType("application/json");
+//        response.setCharacterEncoding("UTF-8");
+//        ObjectMapper objectMapper = new ObjectMapper();
+//        objectMapper.writeValue(response.getOutputStream(), rows);
+        try {
+            resultSet.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return "";
     }
 
     @PostMapping("/execute")

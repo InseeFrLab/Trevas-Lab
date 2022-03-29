@@ -32,26 +32,28 @@ public class InMemoryEngineV2 {
         AtomicReference<Connection> connection = null;
         AtomicReference<Statement> statement = null;
 
-        queriesForBindings.forEach((k, v) -> {
-            try {
-                connection.set(DriverManager.getConnection(
-                        "jdbc:" + v.getUrl(),
-                        v.getUser(),
-                        v.getPassword())
-                );
-                statement.set(connection.get().createStatement());
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-            JDBCDataset jdbcDataset = new JDBCDataset(() -> {
+        if (queriesForBindings != null) {
+            queriesForBindings.forEach((k, v) -> {
                 try {
-                    return statement.get().executeQuery(v.getQuery());
-                } catch (SQLException se) {
-                    throw new RuntimeException(se);
+                    Class.forName("org.postgresql.Driver");
+                    connection.set(DriverManager.getConnection(
+                            "jdbc:" + v.getUrl(),
+                            v.getUser(),
+                            v.getPassword()));
+                    statement.set(connection.get().createStatement());
+                } catch (SQLException | ClassNotFoundException e) {
+                    e.printStackTrace();
                 }
+                JDBCDataset jdbcDataset = new JDBCDataset(() -> {
+                    try {
+                        return statement.get().executeQuery(v.getQuery());
+                    } catch (SQLException se) {
+                        throw new RuntimeException(se);
+                    }
+                });
+                bindings.put(k, jdbcDataset);
             });
-            bindings.put(k, jdbcDataset);
-        });
+        }
 
         ScriptEngine engine = Utils.initEngine(bindings);
 
