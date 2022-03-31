@@ -60,8 +60,10 @@ public class SparkEngineV2 {
         // Assume we only support Postgre for now
         Dataset<Row> ds = spark.read().format("jdbc")
                 .option("url", "jdbc:" + url)
-                //.option("dbtable", "DS1")
-                .option("query", "select * from DS1")
+                .option("user", queriesForBindings.getUser())
+                .option("password", queriesForBindings.getPassword())
+                .option("query", queriesForBindings.getUrl())
+                .option("driver", "org.postgresql.Driver")
                 .load();
         return new SparkDataset(ds, Map.of());
     }
