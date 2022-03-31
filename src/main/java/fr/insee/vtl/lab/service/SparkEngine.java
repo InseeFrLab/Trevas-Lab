@@ -2,9 +2,7 @@ package fr.insee.vtl.lab.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import fr.insee.vtl.lab.model.Body;
-import fr.insee.vtl.lab.model.ParquetPaths;
-import fr.insee.vtl.lab.model.User;
+import fr.insee.vtl.lab.model.*;
 import fr.insee.vtl.lab.utils.Utils;
 import fr.insee.vtl.model.Structured;
 import fr.insee.vtl.spark.SparkDataset;
@@ -40,7 +38,8 @@ public class SparkEngine {
     private ObjectMapper objectMapper;
 
 
-    private SparkDataset readParquetDataset(SparkSession spark, String path) {
+    private SparkDataset readParquetDataset(SparkSession spark, S3ForBindings s3) {
+        String path = s3.getUrl();
         try {
             Dataset<Row> dataset = spark.read().parquet(path + "/parquet");
             byte[] row = spark.read()
@@ -56,20 +55,42 @@ public class SparkEngine {
         }
     }
 
-    public Bindings executeSpark(SparkSession spark, Bindings bindings, String script) throws ScriptException {
+    private SparkDataset readJDBCDataset(SparkSession spark, QueriesForBindings queriesForBindings) {
+        String url = queriesForBindings.getUrl();
+        // Assume we only support Postgre for now
+        Dataset<Row> ds = spark.read().format("jdbc")
+                .option("url", "jdbc:" + url)
+                .option("user", queriesForBindings.getUser())
+                .option("password", queriesForBindings.getPassword())
+                .option("query", queriesForBindings.getUrl())
+                .option("driver", "org.postgresql.Driver")
+                .load();
+        return new SparkDataset(ds, Map.of());
+    }
+
+    public Bindings executeSpark(SparkSession spark, Map<String, QueriesForBindings> queriesForBindings,
+                                 Map<String, S3ForBindings> s3ForBindings, String script) throws ScriptException {
         Bindings updatedBindings = new SimpleBindings();
-        bindings.forEach((name, value) -> {
-            try {
-                if (value instanceof String) {
-                    SparkDataset sparkDataset = readParquetDataset(spark, (String) value);
-                    updatedBindings.put(name, sparkDataset);
-                } else {
-                    updatedBindings.put(name, value);
+        if (queriesForBindings != null) {
+            queriesForBindings.forEach((k, v) -> {
+                try {
+                    SparkDataset sparkDataset = readJDBCDataset(spark, v);
+                    updatedBindings.put(k, sparkDataset);
+                } catch (Exception e) {
+                    logger.warn("Parquet loading failed: ", e);
                 }
-            } catch (Exception e) {
-                logger.warn("Parquet loading failed: ", e);
-            }
-        });
+            });
+        }
+        if (s3ForBindings != null) {
+            s3ForBindings.forEach((k, v) -> {
+                try {
+                    SparkDataset sparkDataset = readParquetDataset(spark, v);
+                    updatedBindings.put(k, sparkDataset);
+                } catch (Exception e) {
+                    logger.warn("Parquet loading failed: ", e);
+                }
+            });
+        }
 
         ScriptEngine engine = Utils.initEngineWithSpark(updatedBindings, spark);
 
@@ -82,19 +103,21 @@ public class SparkEngine {
 
     public Bindings executeLocalSpark(User user, Body body) throws ScriptException {
         String script = body.getVtlScript();
-        Bindings jsonBindings = body.getBindings();
+        Map<String, QueriesForBindings> queriesForBindings = body.getQueriesForBindings();
+        Map<String, S3ForBindings> s3ForBindings = body.getS3ForBindings();
 
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .appName("vtl-lab")
                 .master("local");
 
         SparkSession spark = sparkBuilder.getOrCreate();
-        return executeSpark(spark, jsonBindings, script);
+        return executeSpark(spark, queriesForBindings, s3ForBindings, script);
     }
 
     public Bindings executeSparkStatic(User user, Body body) throws ScriptException {
         String script = body.getVtlScript();
-        Bindings jsonBindings = body.getBindings();
+        Map<String, QueriesForBindings> queriesForBindings = body.getQueriesForBindings();
+        Map<String, S3ForBindings> s3ForBindings = body.getS3ForBindings();
 
         SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
 
@@ -113,7 +136,7 @@ public class SparkEngine {
         ));
 
         SparkSession spark = sparkBuilder.getOrCreate();
-        return executeSpark(spark, jsonBindings, script);
+        return executeSpark(spark, queriesForBindings, s3ForBindings, script);
     }
 
     public Bindings executeSparkKube(User user, Body body) throws ScriptException {
@@ -133,9 +156,10 @@ public class SparkEngine {
         ));
 
         String script = body.getVtlScript();
-        Bindings jsonBindings = body.getBindings();
+        Map<String, QueriesForBindings> queriesForBindings = body.getQueriesForBindings();
+        Map<String, S3ForBindings> s3ForBindings = body.getS3ForBindings();
         SparkSession spark = sparkBuilder.getOrCreate();
-        return executeSpark(spark, jsonBindings, script);
+        return executeSpark(spark, queriesForBindings, s3ForBindings, script);
     }
 
     public String buildParquet(User user, ParquetPaths parquetPaths) {

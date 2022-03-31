@@ -16,9 +16,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import javax.script.Bindings;
 import javax.script.ScriptException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.sql.*;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -44,13 +43,71 @@ public class VtlLabController {
     private ObjectMapper objectMapper;
 
     @PostMapping("/in-memory")
-    public Bindings executeInMemory(Authentication auth, @RequestBody Body body) {
+    public Bindings executeInMemory(Authentication auth, @RequestBody Body body) throws SQLException {
         return inMemoryEngine.executeInMemory(userProvider.getUser(auth), body);
     }
 
     @PostMapping("/build-parquet")
     public String buildParquet(Authentication auth, @RequestBody ParquetPaths parquetPaths) {
         return sparkEngine.buildParquet(userProvider.getUser(auth), parquetPaths);
+    }
+
+    @PostMapping("/jdbc")
+    public ResponseEntity<EditVisualize> getJDBC(Authentication auth, @RequestBody QueriesForBindings queriesForBindings) throws SQLException {
+        Connection connection;
+        Statement statement = null;
+        try {
+            Class.forName("org.postgresql.Driver");
+            connection = DriverManager.getConnection(
+                    "jdbc:" + queriesForBindings.getUrl(),
+                    queriesForBindings.getUser(),
+                    queriesForBindings.getPassword());
+            statement = connection.createStatement();
+        } catch (SQLException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        ResultSet resultSet = null;
+        try {
+            resultSet = statement.executeQuery(queriesForBindings.getQuery());
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        // Structure
+        List<Map<String, Object>> structure = new ArrayList<>();
+        ResultSetMetaData rsmd = resultSet.getMetaData();
+        int columnCount = rsmd.getColumnCount();
+
+        for (int i = 1; i <= columnCount; i++) {
+            Map<String, Object> row = new HashMap<>();
+            String colName = rsmd.getColumnName(i);
+            row.put("name", colName);
+            String colType = JDBCType.valueOf(rsmd.getColumnType(i)).getName();
+            row.put("type", colType);
+            structure.add(row);
+        }
+
+        // Data
+        List<List<Object>> points = new ArrayList<>();
+        while (resultSet.next()) {
+            List<Object> row = new ArrayList<>();
+            for (int i = 1; i <= columnCount; i++) {
+                Object colVal = resultSet.getObject(i);
+                row.add(colVal);
+            }
+            points.add(row);
+        }
+
+        EditVisualize editVisualize = new EditVisualize();
+        editVisualize.setDataStructure(structure);
+        editVisualize.setDataPoints(points);
+
+        try {
+            resultSet.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(editVisualize);
     }
 
     @PostMapping("/execute")
@@ -62,7 +119,17 @@ public class VtlLabController {
     ) {
         Job job;
         if (mode == ExecutionMode.MEMORY) {
-            job = executeJob(body, () -> inMemoryEngine.executeInMemory(userProvider.getUser(auth), body));
+            job = executeJob(body, () -> {
+                try {
+                    return inMemoryEngine.executeInMemory(userProvider.getUser(auth), body);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    throw new ResponseStatusException(
+                            HttpStatus.INTERNAL_SERVER_ERROR,
+                            "SQLException error: " + type
+                    );
+                }
+            });
         } else {
             switch (type) {
                 case LOCAL:
