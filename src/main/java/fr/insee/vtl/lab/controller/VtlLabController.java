@@ -16,6 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import javax.script.Bindings;
 import javax.script.ScriptException;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -44,13 +45,26 @@ public class VtlLabController {
     private ObjectMapper objectMapper;
 
     @PostMapping("/in-memory")
-    public Bindings executeInMemory(Authentication auth, @RequestBody Body body) {
+    public Bindings executeInMemory(Authentication auth, @RequestBody Body body) throws SQLException {
         return inMemoryEngine.executeInMemory(userProvider.getUser(auth), body);
     }
 
-    @PostMapping("/build-parquet")
-    public String buildParquet(Authentication auth, @RequestBody ParquetPaths parquetPaths) {
-        return sparkEngine.buildParquet(userProvider.getUser(auth), parquetPaths);
+//    @PostMapping("/build-parquet")
+//    public String buildParquet(Authentication auth, @RequestBody ParquetPaths parquetPaths) {
+//        return sparkEngine.buildParquet(userProvider.getUser(auth), parquetPaths);
+//    }
+
+    @PostMapping("/jdbc")
+    public ResponseEntity<EditVisualize> getJDBC(
+            Authentication auth,
+            @RequestBody QueriesForBindings queriesForBindings,
+            @RequestParam("mode") ExecutionMode mode)
+            throws SQLException {
+        if (mode == ExecutionMode.MEMORY) {
+            return inMemoryEngine.getJDBC(userProvider.getUser(auth), queriesForBindings);
+        } else {
+            return sparkEngine.getJDBC(userProvider.getUser(auth), queriesForBindings);
+        }
     }
 
     @PostMapping("/execute")
@@ -62,7 +76,17 @@ public class VtlLabController {
     ) {
         Job job;
         if (mode == ExecutionMode.MEMORY) {
-            job = executeJob(body, () -> inMemoryEngine.executeInMemory(userProvider.getUser(auth), body));
+            job = executeJob(body, () -> {
+                try {
+                    return inMemoryEngine.executeInMemory(userProvider.getUser(auth), body);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    throw new ResponseStatusException(
+                            HttpStatus.INTERNAL_SERVER_ERROR,
+                            "SQLException error: " + type
+                    );
+                }
+            });
         } else {
             switch (type) {
                 case LOCAL:
