@@ -11,15 +11,18 @@ import org.apache.logging.log4j.Logger;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.types.StructType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import javax.script.*;
 import java.io.IOException;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -162,56 +165,118 @@ public class SparkEngine {
         return executeSpark(spark, queriesForBindings, s3ForBindings, script);
     }
 
-    public String buildParquet(User user, ParquetPaths parquetPaths) {
+//    public String buildParquet(User user, ParquetPaths parquetPaths) {
+//
+//        String structure = parquetPaths.getStructure();
+//        String data = parquetPaths.getData();
+//        String target = parquetPaths.getTarget();
+//
+//        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
+//
+//        SparkSession.Builder sparkBuilder = SparkSession.builder()
+//                .config(conf)
+//                .master("k8s://https://kubernetes.default.svc.cluster.local:443");
+//
+//        // Note: all the dependencies are required for deserialization.
+//        // See https://stackoverflow.com/questions/28079307
+//        sparkBuilder.config("spark.jars", String.join(",",
+//                "/vtl-spark.jar",
+//                "/vtl-model.jar",
+//                "/vtl-jackson.jar",
+//                "/vtl-parser.jar",
+//                "/vtl-engine.jar"
+//        ));
+//
+//        SparkSession spark = sparkBuilder.getOrCreate();
+//
+//        TypeReference<List<Structured.Component>> COMPONENT_TYPE = new TypeReference<>() {
+//        };
+//
+//        byte[] row = spark.read()
+//                .format("binaryFile")
+//                .load(structure)
+//                .first()
+//                .getAs("content");
+//
+//        List<Structured.Component> components = null;
+//        try {
+//            components = objectMapper.readValue(row, COMPONENT_TYPE);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//            return "ko";
+//        }
+//        Structured.DataStructure dsStructure = new Structured.DataStructure(components);
+//
+//        StructType structType = SparkDataset.toSparkSchema(dsStructure);
+//
+//        Dataset<Row> dataset = spark.read()
+//                .options(Map.of("header", "true", "delimiter", ";"))
+//                .schema(structType)
+//                .csv(data);
+//        dataset.write().mode(SaveMode.Overwrite).parquet(target);
+//        return "ok";
+//    }
 
-        String structure = parquetPaths.getStructure();
-        String data = parquetPaths.getData();
-        String target = parquetPaths.getTarget();
-
-        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
-
-        SparkSession.Builder sparkBuilder = SparkSession.builder()
-                .config(conf)
-                .master("k8s://https://kubernetes.default.svc.cluster.local:443");
-
-        // Note: all the dependencies are required for deserialization.
-        // See https://stackoverflow.com/questions/28079307
-        sparkBuilder.config("spark.jars", String.join(",",
-                "/vtl-spark.jar",
-                "/vtl-model.jar",
-                "/vtl-jackson.jar",
-                "/vtl-parser.jar",
-                "/vtl-engine.jar"
-        ));
-
-        SparkSession spark = sparkBuilder.getOrCreate();
-
-        TypeReference<List<Structured.Component>> COMPONENT_TYPE = new TypeReference<>() {
-        };
-
-        byte[] row = spark.read()
-                .format("binaryFile")
-                .load(structure)
-                .first()
-                .getAs("content");
-
-        List<Structured.Component> components = null;
+    public ResponseEntity<EditVisualize> getJDBC(
+            User user,
+            QueriesForBindings queriesForBindings)
+            throws SQLException {
+        // TODO
+        // Query with spark.read.load
+        Connection connection;
+        Statement statement = null;
         try {
-            components = objectMapper.readValue(row, COMPONENT_TYPE);
-        } catch (IOException e) {
+            Class.forName("org.postgresql.Driver");
+            connection = DriverManager.getConnection(
+                    "jdbc:" + queriesForBindings.getUrl(),
+                    queriesForBindings.getUser(),
+                    queriesForBindings.getPassword());
+            statement = connection.createStatement();
+        } catch (SQLException | ClassNotFoundException e) {
             e.printStackTrace();
-            return "ko";
         }
-        Structured.DataStructure dsStructure = new Structured.DataStructure(components);
+        ResultSet resultSet = null;
+        try {
+            resultSet = statement.executeQuery(queriesForBindings.getQuery());
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        // Structure
+        List<Map<String, Object>> structure = new ArrayList<>();
+        ResultSetMetaData rsmd = resultSet.getMetaData();
+        int columnCount = rsmd.getColumnCount();
 
-        StructType structType = SparkDataset.toSparkSchema(dsStructure);
+        for (int i = 1; i <= columnCount; i++) {
+            Map<String, Object> row = new HashMap<>();
+            String colName = rsmd.getColumnName(i);
+            row.put("name", colName);
+            String colType = JDBCType.valueOf(rsmd.getColumnType(i)).getName();
+            row.put("type", colType);
+            structure.add(row);
+        }
 
-        Dataset<Row> dataset = spark.read()
-                .options(Map.of("header", "true", "delimiter", ";"))
-                .schema(structType)
-                .csv(data);
-        dataset.write().mode(SaveMode.Overwrite).parquet(target);
-        return "ok";
+        // Data
+        List<List<Object>> points = new ArrayList<>();
+        while (resultSet.next()) {
+            List<Object> row = new ArrayList<>();
+            for (int i = 1; i <= columnCount; i++) {
+                Object colVal = resultSet.getObject(i);
+                row.add(colVal);
+            }
+            points.add(row);
+        }
+
+        EditVisualize editVisualize = new EditVisualize();
+        editVisualize.setDataStructure(structure);
+        editVisualize.setDataPoints(points);
+
+        try {
+            resultSet.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(editVisualize);
     }
 
 }
