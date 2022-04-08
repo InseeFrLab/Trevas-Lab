@@ -20,7 +20,6 @@ import org.springframework.stereotype.Service;
 
 import javax.script.*;
 import java.io.IOException;
-import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -59,13 +58,12 @@ public class SparkEngine {
     }
 
     private SparkDataset readJDBCDataset(SparkSession spark, QueriesForBindings queriesForBindings) {
-        String url = queriesForBindings.getUrl();
         // Assume we only support Postgre for now
         Dataset<Row> ds = spark.read().format("jdbc")
-                .option("url", "jdbc:" + url)
+                .option("url", "jdbc:" + queriesForBindings.getUrl())
                 .option("user", queriesForBindings.getUser())
                 .option("password", queriesForBindings.getPassword())
-                .option("query", queriesForBindings.getUrl())
+                .option("query", queriesForBindings.getQuery())
                 .option("driver", "org.postgresql.Driver")
                 .load();
         return new SparkDataset(ds, Map.of());
@@ -80,7 +78,7 @@ public class SparkEngine {
                     SparkDataset sparkDataset = readJDBCDataset(spark, v);
                     updatedBindings.put(k, sparkDataset);
                 } catch (Exception e) {
-                    logger.warn("Parquet loading failed: ", e);
+                    logger.warn("Query loading failed: ", e);
                 }
             });
         }
@@ -90,7 +88,7 @@ public class SparkEngine {
                     SparkDataset sparkDataset = readParquetDataset(spark, v);
                     updatedBindings.put(k, sparkDataset);
                 } catch (Exception e) {
-                    logger.warn("Parquet loading failed: ", e);
+                    logger.warn("S3 loading failed: ", e);
                 }
             });
         }
@@ -99,9 +97,8 @@ public class SparkEngine {
 
         engine.eval(script);
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
-        //Bindings sizedBindings = Utils.getBindings(outputBindings, true);
         //Utils.writeSparkDatasets(dsBindings, toSave, objectMapper, spark);
-        return Utils.getBindings(outputBindings);
+        return Utils.getSparkBindings(outputBindings);
     }
 
     public Bindings executeLocalSpark(User user, Body body) throws ScriptException {
@@ -219,62 +216,37 @@ public class SparkEngine {
 
     public ResponseEntity<EditVisualize> getJDBC(
             User user,
-            QueriesForBindings queriesForBindings)
-            throws SQLException {
-        // TODO
-        // Query with spark.read.load
-        Connection connection;
-        Statement statement = null;
-        try {
-            Class.forName("org.postgresql.Driver");
-            connection = DriverManager.getConnection(
-                    "jdbc:" + queriesForBindings.getUrl(),
-                    queriesForBindings.getUser(),
-                    queriesForBindings.getPassword());
-            statement = connection.createStatement();
-        } catch (SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-        ResultSet resultSet = null;
-        try {
-            resultSet = statement.executeQuery(queriesForBindings.getQuery());
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        // Structure
-        List<Map<String, Object>> structure = new ArrayList<>();
-        ResultSetMetaData rsmd = resultSet.getMetaData();
-        int columnCount = rsmd.getColumnCount();
+            QueriesForBindings queriesForBindings) {
+        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
+        SparkSession.Builder sparkBuilder = SparkSession.builder()
+                .config(conf)
+                .master("k8s://https://kubernetes.default.svc.cluster.local:443");
+        SparkSession spark = sparkBuilder.getOrCreate();
+        Dataset<Row> ds = spark.read().format("jdbc")
+                .option("url", "jdbc:" + queriesForBindings.getUrl())
+                .option("user", queriesForBindings.getUser())
+                .option("password", queriesForBindings.getPassword())
+                .option("query", queriesForBindings.getQuery())
+                .option("driver", "org.postgresql.Driver")
+                .load()
+                .limit(1000);
 
-        for (int i = 1; i <= columnCount; i++) {
-            Map<String, Object> row = new HashMap<>();
-            String colName = rsmd.getColumnName(i);
-            row.put("name", colName);
-            String colType = JDBCType.valueOf(rsmd.getColumnType(i)).getName();
-            row.put("type", colType);
-            structure.add(row);
-        }
-
-        // Data
-        List<List<Object>> points = new ArrayList<>();
-        while (resultSet.next()) {
-            List<Object> row = new ArrayList<>();
-            for (int i = 1; i <= columnCount; i++) {
-                Object colVal = resultSet.getObject(i);
-                row.add(colVal);
-            }
-            points.add(row);
-        }
+        fr.insee.vtl.model.Dataset trevasDs = new SparkDataset(ds, Map.of());
 
         EditVisualize editVisualize = new EditVisualize();
-        editVisualize.setDataStructure(structure);
-        editVisualize.setDataPoints(points);
 
-        try {
-            resultSet.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        List<Map<String, Object>> structure = new ArrayList<>();
+        trevasDs.getDataStructure().entrySet().forEach(e -> {
+            Structured.Component component = e.getValue();
+            Map<String, Object> row = new HashMap<>();
+            row.put("name", component.getName());
+            row.put("type", component.getType());
+            structure.add(row);
+        });
+        editVisualize.setDataStructure(structure);
+
+        editVisualize.setDataPoints(trevasDs.getDataAsList());
+
         return ResponseEntity.status(HttpStatus.OK)
                 .body(editVisualize);
     }
