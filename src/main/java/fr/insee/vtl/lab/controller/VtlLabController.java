@@ -67,6 +67,13 @@ public class VtlLabController {
         }
     }
 
+    @PostMapping("/S3")
+    public ResponseEntity<EditVisualize> getJDBC(
+            Authentication auth,
+            @RequestBody S3ForBindings s3ForBindings) {
+        return sparkEngine.getS3(userProvider.getUser(auth), s3ForBindings);
+    }
+
     @PostMapping("/execute")
     public ResponseEntity<UUID> executeNew(
             Authentication auth,

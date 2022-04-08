@@ -251,4 +251,43 @@ public class SparkEngine {
                 .body(editVisualize);
     }
 
+    public ResponseEntity<EditVisualize> getS3(
+            User user,
+            S3ForBindings s3ForBindings) {
+        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
+        SparkSession.Builder sparkBuilder = SparkSession.builder()
+                .config(conf)
+                .master("k8s://https://kubernetes.default.svc.cluster.local:443");
+        SparkSession spark = sparkBuilder.getOrCreate();
+
+        EditVisualize editVisualize = new EditVisualize();
+
+        String path = s3ForBindings.getUrl();
+        try {
+            Dataset<Row> dataset = spark.read().parquet(path + "/parquet");
+            byte[] row = spark.read()
+                    .format("binaryFile")
+                    .load(path + "/structure.json")
+                    .first()
+                    .getAs("content");
+            List<Structured.Component> components = objectMapper.readValue(row, COMPONENT_TYPE);
+            Structured.DataStructure builtStructure = new Structured.DataStructure(components);
+            fr.insee.vtl.model.Dataset trevasDs = new SparkDataset(dataset, builtStructure);
+
+            List<Map<String, Object>> structure = new ArrayList<>();
+            trevasDs.getDataStructure().entrySet().forEach(e -> {
+                Structured.Component component = e.getValue();
+                Map<String, Object> rowMap = new HashMap<>();
+                rowMap.put("name", component.getName());
+                rowMap.put("type", component.getType());
+                structure.add(rowMap);
+            });
+            editVisualize.setDataStructure(structure);
+            editVisualize.setDataPoints(trevasDs.getDataAsList());
+        } catch (IOException e) {
+            throw new RuntimeException("could not read file " + path, e);
+        }
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(editVisualize);
+    }
 }
