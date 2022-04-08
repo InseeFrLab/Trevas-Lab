@@ -223,7 +223,7 @@ public class SparkEngine {
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .config(conf)
                 .master("k8s://https://kubernetes.default.svc.cluster.local:443");
-        sparkBuilder.config("spark.jars", "org.postgresql:postgresql:42.3.3");
+        sparkBuilder.config("spark.jars.packages", "org.postgresql:postgresql:42.3.3");
         SparkSession spark = sparkBuilder.getOrCreate();
         Dataset<Row> ds = spark.read().format("jdbc")
                 .option("url", "jdbc:" + queriesForBindings.getUrl())
