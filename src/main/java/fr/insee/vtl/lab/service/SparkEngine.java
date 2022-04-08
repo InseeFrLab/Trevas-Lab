@@ -145,6 +145,8 @@ public class SparkEngine {
                 .config(conf)
                 .master("k8s://https://kubernetes.default.svc.cluster.local:443");
 
+        sparkBuilder.config("spark.jars", "/postgresql.jar");
+
         // Note: all the dependencies are required for deserialization.
         // See https://stackoverflow.com/questions/28079307
         sparkBuilder.config("spark.jars", String.join(",",
@@ -221,6 +223,7 @@ public class SparkEngine {
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .config(conf)
                 .master("k8s://https://kubernetes.default.svc.cluster.local:443");
+        sparkBuilder.config("spark.jars", "/postgresql.jar");
         SparkSession spark = sparkBuilder.getOrCreate();
         Dataset<Row> ds = spark.read().format("jdbc")
                 .option("url", "jdbc:" + queriesForBindings.getUrl())
