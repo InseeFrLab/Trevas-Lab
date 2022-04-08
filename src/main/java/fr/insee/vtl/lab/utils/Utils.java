@@ -67,14 +67,13 @@ public class Utils {
         }
     }
 
-    public static Bindings getBindings(Bindings input, Boolean toLength) {
-        if (!toLength) return input;
+    public static Bindings getSparkBindings(Bindings input) {
         Bindings output = new SimpleBindings();
         input.forEach((k, v) -> {
             if (!k.startsWith("$")) {
-                var size = ((fr.insee.vtl.model.Dataset) v).getDataPoints().size();
-                output.put(k, size);
-                logger.info(k + " dataset has size: " + size);
+                Dataset<Row> sparkDs = ((SparkDataset) v).getSparkDataset().limit(1000);
+                fr.insee.vtl.model.Dataset ds = new SparkDataset(sparkDs, Map.of());
+                output.put(k, ds);
             }
         });
         return output;
