@@ -1,20 +1,15 @@
 package fr.insee.vtl.lab.utils;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.insee.vtl.spark.SparkDataset;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 
 import javax.script.*;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Map;
 
 public class Utils {
@@ -72,36 +67,35 @@ public class Utils {
         input.forEach((k, v) -> {
             if (!k.startsWith("$")) {
                 Dataset<Row> sparkDs = ((SparkDataset) v).getSparkDataset();
-                if (limit != null) sparkDs.limit(limit);
-                fr.insee.vtl.model.Dataset ds = new SparkDataset(sparkDs, Map.of());
-                output.put(k, ds);
+                if (limit != null) output.put(k, new SparkDataset(sparkDs.limit(limit), Map.of()));
+                else output.put(k, new SparkDataset(sparkDs, Map.of()));
             }
         });
         return output;
     }
 
-    public static void writeSparkDatasets(Bindings bindings, Bindings toSave,
-                                          ObjectMapper objectMapper,
-                                          SparkSession spark) {
-        toSave.forEach((name, location) -> {
-            SparkDataset dataset = (SparkDataset) bindings.get(name);
-            writeSparkDataset(objectMapper, spark, (String) location, dataset);
-        });
-    }
-
-    public static void writeSparkDataset(ObjectMapper objectMapper, SparkSession spark, String location, SparkDataset dataset) {
-        Dataset<Row> sparkDataset = dataset.getSparkDataset();
-        sparkDataset.write().mode(SaveMode.ErrorIfExists).parquet(location + "/parquet");
-        // Trick to write json thanks to spark
-        String json = "";
-        try {
-            json = objectMapper.writeValueAsString(dataset.getDataStructure().values());
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
-        JavaSparkContext.fromSparkContext(spark.sparkContext())
-                .parallelize(List.of(json.getBytes()))
-                .coalesce(1)
-                .saveAsTextFile(location + "/structure.json");
-    }
+//    public static void writeSparkDatasets(Bindings bindings, Bindings toSave,
+//                                          ObjectMapper objectMapper,
+//                                          SparkSession spark) {
+//        toSave.forEach((name, location) -> {
+//            SparkDataset dataset = (SparkDataset) bindings.get(name);
+//            writeSparkDataset(objectMapper, spark, (String) location, dataset);
+//        });
+//    }
+//
+//    public static void writeSparkDataset(ObjectMapper objectMapper, SparkSession spark, String location, SparkDataset dataset) {
+//        Dataset<Row> sparkDataset = dataset.getSparkDataset();
+//        sparkDataset.write().mode(SaveMode.ErrorIfExists).parquet(location + "/parquet");
+//        // Trick to write json thanks to spark
+//        String json = "";
+//        try {
+//            json = objectMapper.writeValueAsString(dataset.getDataStructure().values());
+//        } catch (JsonProcessingException e) {
+//            e.printStackTrace();
+//        }
+//        JavaSparkContext.fromSparkContext(spark.sparkContext())
+//                .parallelize(List.of(json.getBytes()))
+//                .coalesce(1)
+//                .saveAsTextFile(location + "/structure.json");
+//    }
 }

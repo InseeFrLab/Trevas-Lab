@@ -39,7 +39,7 @@ public class SparkEngine {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private SparkSession buildSparkSession(ExecutionType type, Boolean addVTLJars) throws Exception {
+    private SparkSession buildSparkSession(ExecutionType type, Boolean addJars) throws Exception {
         if (ExecutionType.LOCAL == type) {
             SparkSession.Builder sparkBuilder = SparkSession.builder()
                     .appName("vtl-lab")
@@ -49,7 +49,7 @@ public class SparkEngine {
             SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
             SparkSession.Builder sparkBuilder = SparkSession.builder()
                     .config(conf);
-            if (addVTLJars) {
+            if (addJars) {
                 // Note: all the dependencies are required for deserialization.
                 // See https://stackoverflow.com/questions/28079307
                 sparkBuilder.config("spark.jars", String.join(",",
@@ -59,6 +59,7 @@ public class SparkEngine {
                         "/vtl-parser.jar",
                         "/vtl-engine.jar"
                 ));
+                // Add JDBC Driver Jars
             }
             if (ExecutionType.CLUSTER_KUBERNETES == type)
                 sparkBuilder.master("k8s://https://kubernetes.default.svc.cluster.local:443");
@@ -70,7 +71,6 @@ public class SparkEngine {
         String path = s3.getUrl();
         try {
             Dataset<Row> dataset = spark.read().parquet(path + "/parquet");
-            if (limit != null) dataset.limit(limit);
             byte[] row = spark.read()
                     .format("binaryFile")
                     .load(path + "/structure.json")
@@ -78,6 +78,7 @@ public class SparkEngine {
                     .getAs("content");
             List<Structured.Component> components = objectMapper.readValue(row, COMPONENT_TYPE);
             Structured.DataStructure structure = new Structured.DataStructure(components);
+            if (limit != null) return new SparkDataset(dataset.limit(limit), structure);
             return new SparkDataset(dataset, structure);
         } catch (IOException e) {
             throw new RuntimeException("could not read file " + path, e);
@@ -93,7 +94,7 @@ public class SparkEngine {
                 .option("query", queriesForBindings.getQuery())
                 .option("driver", "org.postgresql.Driver")
                 .load();
-        if (limit != null) ds.limit(limit);
+        if (limit != null) return new SparkDataset(ds.limit(limit), Map.of());
         return new SparkDataset(ds, Map.of());
     }
 

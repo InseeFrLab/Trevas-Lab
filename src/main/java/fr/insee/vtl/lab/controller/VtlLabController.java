@@ -5,7 +5,6 @@ import fr.insee.vtl.lab.configuration.security.UserProvider;
 import fr.insee.vtl.lab.model.*;
 import fr.insee.vtl.lab.service.InMemoryEngine;
 import fr.insee.vtl.lab.service.SparkEngine;
-import fr.insee.vtl.spark.SparkDataset;
 import org.apache.spark.sql.SparkSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -22,8 +21,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import static fr.insee.vtl.lab.utils.Utils.writeSparkDataset;
 
 @RestController
 @RequestMapping("/api/vtl")
@@ -47,21 +44,20 @@ public class VtlLabController {
     @PostMapping("/connect")
     public ResponseEntity<EditVisualize> getDataFromConnector(
             Authentication auth,
-            @RequestBody QueriesForBindings queriesForBindings,
-            @RequestBody S3ForBindings s3ForBindings,
+            @RequestBody Body body,
             @RequestParam("mode") ExecutionMode mode,
             @RequestParam("connectorType") ConnectorType connectorType,
             @RequestParam("type") ExecutionType type
     ) throws Exception {
         if (mode == ExecutionMode.MEMORY) {
             if (connectorType == ConnectorType.JDBC)
-                return inMemoryEngine.getJDBC(userProvider.getUser(auth), queriesForBindings);
+                return inMemoryEngine.getJDBC(userProvider.getUser(auth), body.getQueriesForBindings().get("config"));
             else throw new Exception("Unknow connector type: " + mode);
         } else if (mode == ExecutionMode.SPARK) {
             if (connectorType == ConnectorType.JDBC)
-                return sparkEngine.getJDBC(userProvider.getUser(auth), queriesForBindings, type);
+                return sparkEngine.getJDBC(userProvider.getUser(auth), body.getQueriesForBindings().get("config"), type);
             else if (connectorType == ConnectorType.S3)
-                return sparkEngine.getS3(userProvider.getUser(auth), s3ForBindings, type);
+                return sparkEngine.getS3(userProvider.getUser(auth), body.getS3ForBindings().get("config"), type);
             else throw new Exception("Unknow connector type: " + mode);
         } else throw new Exception("Unknow mode: " + mode);
     }
@@ -152,7 +148,7 @@ public class VtlLabController {
                                 .appName("vtl-lab")
                                 .master("local");
                         SparkSession spark = sparkBuilder.getOrCreate();
-                        writeSparkDataset(objectMapper, spark, output.location, (SparkDataset) job.bindings.get(variableName));
+//                        writeSparkDataset(objectMapper, spark, output.location, (SparkDataset) job.bindings.get(variableName));
                         output.status = Status.DONE;
                     } catch (Exception ex) {
                         job.status = Status.FAILED;
