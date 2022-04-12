@@ -164,58 +164,6 @@ public class SparkEngine {
         return executeSpark(spark, queriesForBindings, s3ForBindings, script);
     }
 
-//    public String buildParquet(User user, ParquetPaths parquetPaths) {
-//
-//        String structure = parquetPaths.getStructure();
-//        String data = parquetPaths.getData();
-//        String target = parquetPaths.getTarget();
-//
-//        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
-//
-//        SparkSession.Builder sparkBuilder = SparkSession.builder()
-//                .config(conf)
-//                .master("k8s://https://kubernetes.default.svc.cluster.local:443");
-//
-//        // Note: all the dependencies are required for deserialization.
-//        // See https://stackoverflow.com/questions/28079307
-//        sparkBuilder.config("spark.jars", String.join(",",
-//                "/vtl-spark.jar",
-//                "/vtl-model.jar",
-//                "/vtl-jackson.jar",
-//                "/vtl-parser.jar",
-//                "/vtl-engine.jar"
-//        ));
-//
-//        SparkSession spark = sparkBuilder.getOrCreate();
-//
-//        TypeReference<List<Structured.Component>> COMPONENT_TYPE = new TypeReference<>() {
-//        };
-//
-//        byte[] row = spark.read()
-//                .format("binaryFile")
-//                .load(structure)
-//                .first()
-//                .getAs("content");
-//
-//        List<Structured.Component> components = null;
-//        try {
-//            components = objectMapper.readValue(row, COMPONENT_TYPE);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//            return "ko";
-//        }
-//        Structured.DataStructure dsStructure = new Structured.DataStructure(components);
-//
-//        StructType structType = SparkDataset.toSparkSchema(dsStructure);
-//
-//        Dataset<Row> dataset = spark.read()
-//                .options(Map.of("header", "true", "delimiter", ";"))
-//                .schema(structType)
-//                .csv(data);
-//        dataset.write().mode(SaveMode.Overwrite).parquet(target);
-//        return "ok";
-//    }
-
     public ResponseEntity<EditVisualize> getJDBC(
             User user,
             QueriesForBindings queriesForBindings) {

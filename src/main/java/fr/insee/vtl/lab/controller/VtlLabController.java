@@ -44,16 +44,6 @@ public class VtlLabController {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @PostMapping("/in-memory")
-    public Bindings executeInMemory(Authentication auth, @RequestBody Body body) throws SQLException {
-        return inMemoryEngine.executeInMemory(userProvider.getUser(auth), body);
-    }
-
-//    @PostMapping("/build-parquet")
-//    public String buildParquet(Authentication auth, @RequestBody ParquetPaths parquetPaths) {
-//        return sparkEngine.buildParquet(userProvider.getUser(auth), parquetPaths);
-//    }
-
     @PostMapping("/jdbc")
     public ResponseEntity<EditVisualize> getJDBC(
             Authentication auth,
