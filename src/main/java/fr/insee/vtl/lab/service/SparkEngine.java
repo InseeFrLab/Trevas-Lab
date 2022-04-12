@@ -39,11 +39,38 @@ public class SparkEngine {
     @Autowired
     private ObjectMapper objectMapper;
 
+    private SparkSession buildSparkSession(ExecutionType type, Boolean addVTLJars) throws Exception {
+        if (ExecutionType.LOCAL == type) {
+            SparkSession.Builder sparkBuilder = SparkSession.builder()
+                    .appName("vtl-lab")
+                    .master("local");
+            return sparkBuilder.getOrCreate();
+        } else if (ExecutionType.CLUSTER_STATIC == type || ExecutionType.CLUSTER_KUBERNETES == type) {
+            SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
+            SparkSession.Builder sparkBuilder = SparkSession.builder()
+                    .config(conf);
+            if (addVTLJars) {
+                // Note: all the dependencies are required for deserialization.
+                // See https://stackoverflow.com/questions/28079307
+                sparkBuilder.config("spark.jars", String.join(",",
+                        "/vtl-spark.jar",
+                        "/vtl-model.jar",
+                        "/vtl-jackson.jar",
+                        "/vtl-parser.jar",
+                        "/vtl-engine.jar"
+                ));
+            }
+            if (ExecutionType.CLUSTER_KUBERNETES == type)
+                sparkBuilder.master("k8s://https://kubernetes.default.svc.cluster.local:443");
+            return sparkBuilder.getOrCreate();
+        } else throw new Exception("Unknow execution type: " + type);
+    }
 
-    private SparkDataset readParquetDataset(SparkSession spark, S3ForBindings s3) {
+    private SparkDataset readParquetDataset(SparkSession spark, S3ForBindings s3, Integer limit) {
         String path = s3.getUrl();
         try {
             Dataset<Row> dataset = spark.read().parquet(path + "/parquet");
+            if (limit != null) dataset.limit(limit);
             byte[] row = spark.read()
                     .format("binaryFile")
                     .load(path + "/structure.json")
@@ -57,7 +84,7 @@ public class SparkEngine {
         }
     }
 
-    private SparkDataset readJDBCDataset(SparkSession spark, QueriesForBindings queriesForBindings) {
+    private SparkDataset readJDBCDataset(SparkSession spark, QueriesForBindings queriesForBindings, Integer limit) {
         // Assume we only support Postgre for now
         Dataset<Row> ds = spark.read().format("jdbc")
                 .option("url", "jdbc:" + queriesForBindings.getUrl())
@@ -66,17 +93,24 @@ public class SparkEngine {
                 .option("query", queriesForBindings.getQuery())
                 .option("driver", "org.postgresql.Driver")
                 .load();
+        if (limit != null) ds.limit(limit);
         return new SparkDataset(ds, Map.of());
     }
 
-    public Bindings executeSpark(SparkSession spark, Map<String, QueriesForBindings> queriesForBindings,
-                                 Map<String, S3ForBindings> s3ForBindings, String script) throws ScriptException {
-        Bindings updatedBindings = new SimpleBindings();
+    public Bindings executeSpark(User user, Body body, ExecutionType type) throws Exception {
+        String script = body.getVtlScript();
+        Map<String, QueriesForBindings> queriesForBindings = body.getQueriesForBindings();
+        Map<String, S3ForBindings> s3ForBindings = body.getS3ForBindings();
+
+        SparkSession spark = buildSparkSession(type, true);
+
+        Bindings bindings = new SimpleBindings();
+
         if (queriesForBindings != null) {
             queriesForBindings.forEach((k, v) -> {
                 try {
-                    SparkDataset sparkDataset = readJDBCDataset(spark, v);
-                    updatedBindings.put(k, sparkDataset);
+                    SparkDataset sparkDataset = readJDBCDataset(spark, v, null);
+                    bindings.put(k, sparkDataset);
                 } catch (Exception e) {
                     logger.warn("Query loading failed: ", e);
                 }
@@ -85,104 +119,30 @@ public class SparkEngine {
         if (s3ForBindings != null) {
             s3ForBindings.forEach((k, v) -> {
                 try {
-                    SparkDataset sparkDataset = readParquetDataset(spark, v);
-                    updatedBindings.put(k, sparkDataset);
+                    SparkDataset sparkDataset = readParquetDataset(spark, v, null);
+                    bindings.put(k, sparkDataset);
                 } catch (Exception e) {
                     logger.warn("S3 loading failed: ", e);
                 }
             });
         }
 
-        ScriptEngine engine = Utils.initEngineWithSpark(updatedBindings, spark);
+        ScriptEngine engine = Utils.initEngineWithSpark(bindings, spark);
 
         engine.eval(script);
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
-        //Utils.writeSparkDatasets(dsBindings, toSave, objectMapper, spark);
-        return Utils.getSparkBindings(outputBindings);
-    }
 
-    public Bindings executeLocalSpark(User user, Body body) throws ScriptException {
-        String script = body.getVtlScript();
-        Map<String, QueriesForBindings> queriesForBindings = body.getQueriesForBindings();
-        Map<String, S3ForBindings> s3ForBindings = body.getS3ForBindings();
-
-        SparkSession.Builder sparkBuilder = SparkSession.builder()
-                .appName("vtl-lab")
-                .master("local");
-
-        SparkSession spark = sparkBuilder.getOrCreate();
-        return executeSpark(spark, queriesForBindings, s3ForBindings, script);
-    }
-
-    public Bindings executeSparkStatic(User user, Body body) throws ScriptException {
-        String script = body.getVtlScript();
-        Map<String, QueriesForBindings> queriesForBindings = body.getQueriesForBindings();
-        Map<String, S3ForBindings> s3ForBindings = body.getS3ForBindings();
-
-        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
-
-        SparkSession.Builder sparkBuilder = SparkSession.builder()
-                .config(conf)
-                .master("local");
-
-        // Note: all the dependencies are required for deserialization.
-        // See https://stackoverflow.com/questions/28079307
-        sparkBuilder.config("spark.jars", String.join(",",
-                "/vtl-spark.jar",
-                "/vtl-model.jar",
-                "/vtl-jackson.jar",
-                "/vtl-parser.jar",
-                "/vtl-engine.jar"
-        ));
-
-        SparkSession spark = sparkBuilder.getOrCreate();
-        return executeSpark(spark, queriesForBindings, s3ForBindings, script);
-    }
-
-    public Bindings executeSparkKube(User user, Body body) throws ScriptException {
-        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
-        SparkSession.Builder sparkBuilder = SparkSession.builder()
-                .config(conf)
-                .master("k8s://https://kubernetes.default.svc.cluster.local:443");
-
-        sparkBuilder.config("spark.jars", "org.postgresql:postgresql:42.3.3");
-
-        // Note: all the dependencies are required for deserialization.
-        // See https://stackoverflow.com/questions/28079307
-        sparkBuilder.config("spark.jars", String.join(",",
-                "/vtl-spark.jar",
-                "/vtl-model.jar",
-                "/vtl-jackson.jar",
-                "/vtl-parser.jar",
-                "/vtl-engine.jar"
-        ));
-
-        String script = body.getVtlScript();
-        Map<String, QueriesForBindings> queriesForBindings = body.getQueriesForBindings();
-        Map<String, S3ForBindings> s3ForBindings = body.getS3ForBindings();
-        SparkSession spark = sparkBuilder.getOrCreate();
-        return executeSpark(spark, queriesForBindings, s3ForBindings, script);
+        return Utils.getSparkBindings(outputBindings, 1000);
     }
 
     public ResponseEntity<EditVisualize> getJDBC(
             User user,
-            QueriesForBindings queriesForBindings) {
-        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
-        SparkSession.Builder sparkBuilder = SparkSession.builder()
-                .config(conf)
-                .master("k8s://https://kubernetes.default.svc.cluster.local:443");
-        sparkBuilder.config("spark.jars.packages", "org.postgresql:postgresql:42.3.3");
-        SparkSession spark = sparkBuilder.getOrCreate();
-        Dataset<Row> ds = spark.read().format("jdbc")
-                .option("url", "jdbc:" + queriesForBindings.getUrl())
-                .option("user", queriesForBindings.getUser())
-                .option("password", queriesForBindings.getPassword())
-                .option("query", queriesForBindings.getQuery())
-                .option("driver", "org.postgresql.Driver")
-                .load()
-                .limit(1000);
+            QueriesForBindings queriesForBindings,
+            ExecutionType type) throws Exception {
 
-        fr.insee.vtl.model.Dataset trevasDs = new SparkDataset(ds, Map.of());
+        SparkSession spark = buildSparkSession(type, false);
+
+        fr.insee.vtl.model.Dataset trevasDs = readJDBCDataset(spark, queriesForBindings, 1000);
 
         EditVisualize editVisualize = new EditVisualize();
 
@@ -204,40 +164,25 @@ public class SparkEngine {
 
     public ResponseEntity<EditVisualize> getS3(
             User user,
-            S3ForBindings s3ForBindings) {
-        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
-        SparkSession.Builder sparkBuilder = SparkSession.builder()
-                .config(conf)
-                .master("k8s://https://kubernetes.default.svc.cluster.local:443");
-        SparkSession spark = sparkBuilder.getOrCreate();
+            S3ForBindings s3ForBindings,
+            ExecutionType type) throws Exception {
+
+        SparkSession spark = buildSparkSession(type, false);
 
         EditVisualize editVisualize = new EditVisualize();
 
-        String path = s3ForBindings.getUrl();
-        try {
-            Dataset<Row> dataset = spark.read().parquet(path + "/parquet");
-            byte[] row = spark.read()
-                    .format("binaryFile")
-                    .load(path + "/structure.json")
-                    .first()
-                    .getAs("content");
-            List<Structured.Component> components = objectMapper.readValue(row, COMPONENT_TYPE);
-            Structured.DataStructure builtStructure = new Structured.DataStructure(components);
-            fr.insee.vtl.model.Dataset trevasDs = new SparkDataset(dataset, builtStructure);
+        fr.insee.vtl.model.Dataset trevasDs = readParquetDataset(spark, s3ForBindings, 1000);
 
-            List<Map<String, Object>> structure = new ArrayList<>();
-            trevasDs.getDataStructure().entrySet().forEach(e -> {
-                Structured.Component component = e.getValue();
-                Map<String, Object> rowMap = new HashMap<>();
-                rowMap.put("name", component.getName());
-                rowMap.put("type", component.getType());
-                structure.add(rowMap);
-            });
-            editVisualize.setDataStructure(structure);
-            editVisualize.setDataPoints(trevasDs.getDataAsList());
-        } catch (IOException e) {
-            throw new RuntimeException("could not read file " + path, e);
-        }
+        List<Map<String, Object>> structure = new ArrayList<>();
+        trevasDs.getDataStructure().entrySet().forEach(e -> {
+            Structured.Component component = e.getValue();
+            Map<String, Object> rowMap = new HashMap<>();
+            rowMap.put("name", component.getName());
+            rowMap.put("type", component.getType());
+            structure.add(rowMap);
+        });
+        editVisualize.setDataStructure(structure);
+        editVisualize.setDataPoints(trevasDs.getDataAsList());
         return ResponseEntity.status(HttpStatus.OK)
                 .body(editVisualize);
     }

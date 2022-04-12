@@ -67,11 +67,12 @@ public class Utils {
         }
     }
 
-    public static Bindings getSparkBindings(Bindings input) {
+    public static Bindings getSparkBindings(Bindings input, Integer limit) {
         Bindings output = new SimpleBindings();
         input.forEach((k, v) -> {
             if (!k.startsWith("$")) {
-                Dataset<Row> sparkDs = ((SparkDataset) v).getSparkDataset().limit(1000);
+                Dataset<Row> sparkDs = ((SparkDataset) v).getSparkDataset();
+                if (limit != null) sparkDs.limit(limit);
                 fr.insee.vtl.model.Dataset ds = new SparkDataset(sparkDs, Map.of());
                 output.put(k, ds);
             }

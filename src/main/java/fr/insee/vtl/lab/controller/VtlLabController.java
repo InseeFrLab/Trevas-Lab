@@ -44,24 +44,26 @@ public class VtlLabController {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @PostMapping("/jdbc")
-    public ResponseEntity<EditVisualize> getJDBC(
+    @PostMapping("/connect")
+    public ResponseEntity<EditVisualize> getDataFromConnector(
             Authentication auth,
             @RequestBody QueriesForBindings queriesForBindings,
-            @RequestParam("mode") ExecutionMode mode)
-            throws SQLException {
+            @RequestBody S3ForBindings s3ForBindings,
+            @RequestParam("mode") ExecutionMode mode,
+            @RequestParam("connectorType") ConnectorType connectorType,
+            @RequestParam("type") ExecutionType type
+    ) throws Exception {
         if (mode == ExecutionMode.MEMORY) {
-            return inMemoryEngine.getJDBC(userProvider.getUser(auth), queriesForBindings);
-        } else {
-            return sparkEngine.getJDBC(userProvider.getUser(auth), queriesForBindings);
-        }
-    }
-
-    @PostMapping("/S3")
-    public ResponseEntity<EditVisualize> getJDBC(
-            Authentication auth,
-            @RequestBody S3ForBindings s3ForBindings) {
-        return sparkEngine.getS3(userProvider.getUser(auth), s3ForBindings);
+            if (connectorType == ConnectorType.JDBC)
+                return inMemoryEngine.getJDBC(userProvider.getUser(auth), queriesForBindings);
+            else throw new Exception("Unknow connector type: " + mode);
+        } else if (mode == ExecutionMode.SPARK) {
+            if (connectorType == ConnectorType.JDBC)
+                return sparkEngine.getJDBC(userProvider.getUser(auth), queriesForBindings, type);
+            else if (connectorType == ConnectorType.S3)
+                return sparkEngine.getS3(userProvider.getUser(auth), s3ForBindings, type);
+            else throw new Exception("Unknow connector type: " + mode);
+        } else throw new Exception("Unknow mode: " + mode);
     }
 
     @PostMapping("/execute")
@@ -70,7 +72,7 @@ public class VtlLabController {
             @RequestBody Body body,
             @RequestParam("mode") ExecutionMode mode,
             @RequestParam("type") ExecutionType type
-    ) {
+    ) throws Exception {
         Job job;
         if (mode == ExecutionMode.MEMORY) {
             job = executeJob(body, () -> {
@@ -84,16 +86,19 @@ public class VtlLabController {
                     );
                 }
             });
-        } else {
+        } else if (mode == ExecutionMode.SPARK) {
             switch (type) {
                 case LOCAL:
-                    job = executeJob(body, () -> sparkEngine.executeLocalSpark(userProvider.getUser(auth), body));
-                    break;
                 case CLUSTER_STATIC:
-                    job = executeJob(body, () -> sparkEngine.executeSparkStatic(userProvider.getUser(auth), body));
-                    break;
                 case CLUSTER_KUBERNETES:
-                    job = executeJob(body, () -> sparkEngine.executeSparkKube(userProvider.getUser(auth), body));
+                    job = executeJob(body, () -> {
+                        try {
+                            return sparkEngine.executeSpark(userProvider.getUser(auth), body, type);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        return null;
+                    });
                     break;
                 default:
                     throw new ResponseStatusException(
@@ -101,7 +106,7 @@ public class VtlLabController {
                             "Unsupported execution type: " + type
                     );
             }
-        }
+        } else throw new Exception("Unknow mode:" + mode);
         jobs.put(job.id, job);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .header("Location", "/api/vtl/job/" + job.id)
@@ -162,17 +167,6 @@ public class VtlLabController {
             }
         });
         return job;
-    }
-
-    public enum ExecutionMode {
-        MEMORY,
-        SPARK
-    }
-
-    public enum ExecutionType {
-        LOCAL,
-        CLUSTER_STATIC,
-        CLUSTER_KUBERNETES
     }
 
     @FunctionalInterface

@@ -92,6 +92,7 @@ public class InMemoryEngine {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+
         // Structure
         List<Map<String, Object>> structure = new ArrayList<>();
         ResultSetMetaData rsmd = resultSet.getMetaData();
