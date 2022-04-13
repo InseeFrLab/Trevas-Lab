@@ -68,59 +68,51 @@ public class InMemoryEngine {
             User user,
             QueriesForBindings queriesForBindings)
             throws SQLException {
-        Connection connection;
-        Statement statement = null;
-        try {
-            Class.forName("org.postgresql.Driver");
-            connection = DriverManager.getConnection(
-                    "jdbc:postgresql://" + queriesForBindings.getUrl(),
-                    queriesForBindings.getUser(),
-                    queriesForBindings.getPassword());
-            statement = connection.createStatement();
-        } catch (SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-        ResultSet resultSet = null;
-        try {
-            resultSet = statement.executeQuery(queriesForBindings.getQuery());
+        List<Map<String, Object>> structure = new ArrayList<>();
+        List<List<Object>> points = new ArrayList<>();
+        try (
+                Connection connection = DriverManager.getConnection(
+                        "jdbc:postgresql://" + queriesForBindings.getUrl(),
+                        queriesForBindings.getUser(),
+                        queriesForBindings.getPassword());
+                Statement statement = connection.createStatement()
+        ) {
+            try (
+                    ResultSet resultSet = statement.executeQuery(queriesForBindings.getQuery())
+            ) {
+                // Structure
+                ResultSetMetaData rsmd = resultSet.getMetaData();
+                int columnCount = rsmd.getColumnCount();
+
+                for (int i = 1; i <= columnCount; i++) {
+                    Map<String, Object> row = new HashMap<>();
+                    String colName = rsmd.getColumnName(i);
+                    row.put("name", colName);
+                    String colType = JDBCType.valueOf(rsmd.getColumnType(i)).getName();
+                    row.put("type", colType);
+                    structure.add(row);
+                }
+
+                // Data
+                while (resultSet.next()) {
+                    List<Object> row = new ArrayList<>();
+                    for (int i = 1; i <= columnCount; i++) {
+                        Object colVal = resultSet.getObject(i);
+                        row.add(colVal);
+                    }
+                    points.add(row);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         } catch (SQLException e) {
             e.printStackTrace();
-        }
-
-        // Structure
-        List<Map<String, Object>> structure = new ArrayList<>();
-        ResultSetMetaData rsmd = resultSet.getMetaData();
-        int columnCount = rsmd.getColumnCount();
-
-        for (int i = 1; i <= columnCount; i++) {
-            Map<String, Object> row = new HashMap<>();
-            String colName = rsmd.getColumnName(i);
-            row.put("name", colName);
-            String colType = JDBCType.valueOf(rsmd.getColumnType(i)).getName();
-            row.put("type", colType);
-            structure.add(row);
-        }
-
-        // Data
-        List<List<Object>> points = new ArrayList<>();
-        while (resultSet.next()) {
-            List<Object> row = new ArrayList<>();
-            for (int i = 1; i <= columnCount; i++) {
-                Object colVal = resultSet.getObject(i);
-                row.add(colVal);
-            }
-            points.add(row);
         }
 
         EditVisualize editVisualize = new EditVisualize();
         editVisualize.setDataStructure(structure);
         editVisualize.setDataPoints(points);
 
-        try {
-            resultSet.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
         return ResponseEntity.status(HttpStatus.OK)
                 .body(editVisualize);
     }
