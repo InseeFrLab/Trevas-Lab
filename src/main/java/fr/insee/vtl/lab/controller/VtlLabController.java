@@ -134,13 +134,10 @@ public class VtlLabController {
             try {
                 job.definition = body;
                 Map<String, S3ForBindings> s3ToSave = body.getToSave().getS3ForBindings();
-                for (String name : s3ToSave.keySet()) {
-
-                }
                 if (s3ToSave != null) {
                     s3ToSave.forEach((k, v) -> {
                         var output = new Output();
-                        output.location = v.getUrl();
+                        output.location = k;
                         job.outputs.put(k, output);
                     });
                 }

@@ -38,10 +38,9 @@ public class InMemoryEngine {
                             Connection connection = DriverManager.getConnection(
                                     "jdbc:postgresql://" + v.getUrl(),
                                     v.getUser(),
-                                    v.getPassword());
-                            Statement statement = connection.createStatement()
+                                    v.getPassword())
                     ) {
-
+                        Statement statement = connection.createStatement();
                         return statement.executeQuery(v.getQuery());
                     } catch (SQLException se) {
                         throw new RuntimeException(se);
@@ -66,18 +65,17 @@ public class InMemoryEngine {
 
     public ResponseEntity<EditVisualize> getJDBC(
             User user,
-            QueriesForBindings queriesForBindings)
-            throws SQLException {
+            QueriesForBindings queriesForBindings) {
         List<Map<String, Object>> structure = new ArrayList<>();
         List<List<Object>> points = new ArrayList<>();
         try (
                 Connection connection = DriverManager.getConnection(
                         "jdbc:postgresql://" + queriesForBindings.getUrl(),
                         queriesForBindings.getUser(),
-                        queriesForBindings.getPassword());
-                Statement statement = connection.createStatement()
+                        queriesForBindings.getPassword())
         ) {
             try (
+                    Statement statement = connection.createStatement();
                     ResultSet resultSet = statement.executeQuery(queriesForBindings.getQuery())
             ) {
                 // Structure
