@@ -61,10 +61,11 @@ public class SparkEngine {
                         "/vtl-model.jar",
                         "/vtl-jackson.jar",
                         "/vtl-parser.jar",
-                        "/vtl-engine.jar"
+                        "/vtl-engine.jar",
+                        "/postgresql.jar"
                 ));
                 // Add JDBC Driver Jars
-                sparkBuilder.config("spark.jars.package", "org.postgresql:postgresql:42.3.3");
+//                sparkBuilder.config("spark.jars.package", "org.postgresql:postgresql:42.3.3");
             }
             if (ExecutionType.CLUSTER_KUBERNETES == type)
                 sparkBuilder.master("k8s://https://kubernetes.default.svc.cluster.local:443");
