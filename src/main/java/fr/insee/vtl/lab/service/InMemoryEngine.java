@@ -33,22 +33,16 @@ public class InMemoryEngine {
 
         if (queriesForBindings != null) {
             queriesForBindings.forEach((k, v) -> {
-                Connection connection;
-                Statement statement = null;
-                try {
-                    Class.forName("org.postgresql.Driver");
-                    connection = DriverManager.getConnection(
-                            "jdbc:postgresql://" + v.getUrl(),
-                            v.getUser(),
-                            v.getPassword());
-                    statement = connection.createStatement();
-                } catch (SQLException | ClassNotFoundException e) {
-                    e.printStackTrace();
-                }
-                Statement finalStatement = statement;
                 JDBCDataset jdbcDataset = new JDBCDataset(() -> {
-                    try {
-                        return finalStatement.executeQuery(v.getQuery());
+                    try (
+                            Connection connection = DriverManager.getConnection(
+                                    "jdbc:postgresql://" + v.getUrl(),
+                                    v.getUser(),
+                                    v.getPassword());
+                            Statement statement = connection.createStatement()
+                    ) {
+
+                        return statement.executeQuery(v.getQuery());
                     } catch (SQLException se) {
                         throw new RuntimeException(se);
                     }
