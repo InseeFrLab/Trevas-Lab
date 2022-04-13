@@ -9,7 +9,7 @@ public class Body {
     private Bindings bindings;
     private Map<String, QueriesForBindings> queriesForBindings;
     private Map<String, S3ForBindings> s3ForBindings;
-    private Bindings toSave;
+    private ToSave toSave;
 
     public Map<String, S3ForBindings> getS3ForBindings() {
         return s3ForBindings;
@@ -43,11 +43,11 @@ public class Body {
         this.queriesForBindings = queriesForBindings;
     }
 
-    public Bindings getToSave() {
+    public ToSave getToSave() {
         return toSave;
     }
 
-    public void setToSave(Bindings toSave) {
+    public void setToSave(ToSave toSave) {
         this.toSave = toSave;
     }
 }

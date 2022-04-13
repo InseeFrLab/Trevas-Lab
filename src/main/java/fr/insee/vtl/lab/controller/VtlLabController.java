@@ -133,10 +133,16 @@ public class VtlLabController {
         executorService.submit(() -> {
             try {
                 job.definition = body;
-                for (String name : body.getToSave().keySet()) {
-                    var output = new Output();
-                    output.location = (String) body.getToSave().get(name);
-                    job.outputs.put(name, output);
+                Map<String, S3ForBindings> s3ToSave = body.getToSave().getS3ForBindings();
+                for (String name : s3ToSave.keySet()) {
+
+                }
+                if (s3ToSave != null) {
+                    s3ToSave.forEach((k, v) -> {
+                        var output = new Output();
+                        output.location = v.getUrl();
+                        job.outputs.put(k, output);
+                    });
                 }
                 job.status = Status.RUNNING;
                 job.bindings = execution.execute();

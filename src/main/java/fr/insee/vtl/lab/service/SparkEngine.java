@@ -18,7 +18,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import javax.script.*;
+import javax.script.Bindings;
+import javax.script.ScriptContext;
+import javax.script.ScriptEngine;
+import javax.script.SimpleBindings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 
 import static fr.insee.vtl.lab.utils.Utils.loadSparkConfig;
+import static fr.insee.vtl.lab.utils.Utils.writeSparkDatasets;
 
 @Service
 @ConfigurationProperties(prefix = "spark")
@@ -133,6 +137,8 @@ public class SparkEngine {
 
         engine.eval(script);
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
+
+        writeSparkDatasets(outputBindings, body.getToSave().getS3ForBindings(), objectMapper, spark);
 
         return Utils.getSparkBindings(outputBindings, 1000);
     }
