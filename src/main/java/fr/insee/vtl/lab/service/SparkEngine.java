@@ -138,7 +138,10 @@ public class SparkEngine {
         engine.eval(script);
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
 
-        writeSparkDatasets(outputBindings, body.getToSave().getS3ForBindings(), objectMapper, spark);
+        Map<String, S3ForBindings> s3ToSave = body.getToSave().getS3ForBindings();
+        if (null != s3ToSave) {
+            writeSparkDatasets(outputBindings, s3ToSave, objectMapper, spark);
+        }
 
         return Utils.getSparkBindings(outputBindings, 1000);
     }
