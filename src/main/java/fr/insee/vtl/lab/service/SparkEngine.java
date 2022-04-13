@@ -89,7 +89,7 @@ public class SparkEngine {
     private SparkDataset readJDBCDataset(SparkSession spark, QueriesForBindings queriesForBindings, Integer limit) {
         // Assume we only support Postgre for now
         Dataset<Row> ds = spark.read().format("jdbc")
-                .option("url", "jdbc:" + queriesForBindings.getUrl())
+                .option("url", "jdbc:postgresql://" + queriesForBindings.getUrl())
                 .option("user", queriesForBindings.getUser())
                 .option("password", queriesForBindings.getPassword())
                 .option("query", queriesForBindings.getQuery())
