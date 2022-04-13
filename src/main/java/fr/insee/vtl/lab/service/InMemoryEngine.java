@@ -38,7 +38,7 @@ public class InMemoryEngine {
                 try {
                     Class.forName("org.postgresql.Driver");
                     connection = DriverManager.getConnection(
-                            "jdbc:" + v.getUrl(),
+                            "jdbc:postgresql://" + v.getUrl(),
                             v.getUser(),
                             v.getPassword());
                     statement = connection.createStatement();
@@ -79,7 +79,7 @@ public class InMemoryEngine {
         try {
             Class.forName("org.postgresql.Driver");
             connection = DriverManager.getConnection(
-                    "jdbc:" + queriesForBindings.getUrl(),
+                    "jdbc:postgresql://" + queriesForBindings.getUrl(),
                     queriesForBindings.getUser(),
                     queriesForBindings.getPassword());
             statement = connection.createStatement();
