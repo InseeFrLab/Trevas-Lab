@@ -100,7 +100,7 @@ public class Utils {
             e.printStackTrace();
         }
         JavaSparkContext.fromSparkContext(spark.sparkContext())
-                .parallelize(List.of(json.getBytes()))
+                .parallelize(List.of(json))
                 .coalesce(1)
                 .saveAsTextFile(location + "/structure");
     }

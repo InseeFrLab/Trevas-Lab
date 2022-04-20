@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static fr.insee.vtl.lab.utils.Utils.loadSparkConfig;
 import static fr.insee.vtl.lab.utils.Utils.writeSparkDatasets;
@@ -74,11 +75,16 @@ public class SparkEngine {
         String path = s3.getUrl();
         Dataset<Row> dataset = spark.read().parquet(path + "/data");
         Encoder<Structured.Component> encoder = Encoders.kryo(Structured.Component.class);
-        List<Structured.Component> components = spark.read()
+        Dataset<Row> json = spark.read()
                 .option("multiLine", "true")
-                .json(path + "/structure")
-                .as(encoder)
-                .collectAsList();
+                .json(path + "/structure");
+        List<Structured.Component> components = json.collectAsList().stream().map(r -> {
+                    String name = r.getAs("name");
+                    Class type = r.getAs("type").getClass();
+                    fr.insee.vtl.model.Dataset.Role role = fr.insee.vtl.model.Dataset.Role.valueOf(r.getAs("role"));
+                    return new Structured.Component(name, type, role);
+                }
+        ).collect(Collectors.toList());
         Structured.DataStructure structure = new Structured.DataStructure(components);
         if (limit != null) return new SparkDataset(dataset.limit(limit), structure);
         return new SparkDataset(dataset, structure);
