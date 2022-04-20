@@ -74,10 +74,10 @@ public class SparkEngine {
         String path = s3.getUrl();
         Dataset<Row> dataset = spark.read().parquet(path + "/data");
         Encoder<Structured.Component> encoder = Encoders.kryo(Structured.Component.class);
-        List<Structured.Component> components = spark.read()
+        Dataset<Row> cachedComponents = spark.read()
                 .json(path + "/structure")
-                .cache()
-                .as(encoder)
+                .cache();
+        List<Structured.Component> components = cachedComponents.as(encoder)
                 .collectAsList();
         Structured.DataStructure structure = new Structured.DataStructure(components);
         if (limit != null) return new SparkDataset(dataset.limit(limit), structure);
