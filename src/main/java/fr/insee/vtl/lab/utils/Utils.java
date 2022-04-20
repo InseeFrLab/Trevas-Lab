@@ -88,7 +88,7 @@ public class Utils {
             writeSparkDataset(objectMapper, spark, values.getUrl(), dataset);
         });
     }
-    
+
     public static void writeSparkDataset(ObjectMapper objectMapper, SparkSession spark, String location, SparkDataset dataset) {
         Dataset<Row> sparkDataset = dataset.getSparkDataset();
         sparkDataset.write().mode(SaveMode.ErrorIfExists).parquet(location + "/data");
