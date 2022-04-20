@@ -76,7 +76,6 @@ public class SparkEngine {
         Encoder<Structured.Component> encoder = Encoders.kryo(Structured.Component.class);
         List<Structured.Component> components = spark.read()
                 .option("multiLine", "true")
-                .option("mode", "PERMISSIVE")
                 .json(path + "/structure")
                 .as(encoder)
                 .collectAsList();
