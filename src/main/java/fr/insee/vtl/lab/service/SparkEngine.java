@@ -76,6 +76,7 @@ public class SparkEngine {
         Encoder<Structured.Component> encoder = Encoders.kryo(Structured.Component.class);
         List<Structured.Component> components = spark.read()
                 .json(path + "/structure")
+                .cache()
                 .as(encoder)
                 .collectAsList();
         Structured.DataStructure structure = new Structured.DataStructure(components);
