@@ -9,9 +9,7 @@ import fr.insee.vtl.spark.SparkDataset;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.spark.SparkConf;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.http.HttpStatus;
@@ -22,7 +20,6 @@ import javax.script.Bindings;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.SimpleBindings;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -75,20 +72,12 @@ public class SparkEngine {
 
     private SparkDataset readParquetDataset(SparkSession spark, S3ForBindings s3, Integer limit) {
         String path = s3.getUrl();
-        try {
-            Dataset<Row> dataset = spark.read().parquet(path + "/parquet");
-            byte[] row = spark.read()
-                    .format("binaryFile")
-                    .load(path + "/structure.json")
-                    .first()
-                    .getAs("content");
-            List<Structured.Component> components = objectMapper.readValue(row, COMPONENT_TYPE);
-            Structured.DataStructure structure = new Structured.DataStructure(components);
-            if (limit != null) return new SparkDataset(dataset.limit(limit), structure);
-            return new SparkDataset(dataset, structure);
-        } catch (IOException e) {
-            throw new RuntimeException("could not read file " + path, e);
-        }
+        Dataset<Row> dataset = spark.read().parquet(path + "/data");
+        Encoder<Structured.Component> componentEncoder = Encoders.bean(Structured.Component.class);
+        Dataset<Structured.Component> components = spark.read().json(path + "/structure").as(componentEncoder);
+        Structured.DataStructure structure = new Structured.DataStructure(components.collectAsList());
+        if (limit != null) return new SparkDataset(dataset.limit(limit), structure);
+        return new SparkDataset(dataset, structure);
     }
 
     private SparkDataset readJDBCDataset(SparkSession spark, QueriesForBindings queriesForBindings, Integer limit) {
