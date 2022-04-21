@@ -104,4 +104,9 @@ public class Utils {
                 .coalesce(1)
                 .saveAsTextFile(location + "/structure");
     }
+
+    public static String getJDBCPrefix(String dbType) throws Exception {
+        if (dbType.equals("postgre")) return "jdbc:postgresql://";
+        throw new Exception("Unsupported dbtype: " + dbType);
+    }
 }

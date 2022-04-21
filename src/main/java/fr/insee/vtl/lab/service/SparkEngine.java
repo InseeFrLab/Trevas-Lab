@@ -9,7 +9,9 @@ import fr.insee.vtl.spark.SparkDataset;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.spark.SparkConf;
-import org.apache.spark.sql.*;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.http.HttpStatus;
@@ -26,8 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static fr.insee.vtl.lab.utils.Utils.loadSparkConfig;
-import static fr.insee.vtl.lab.utils.Utils.writeSparkDatasets;
+import static fr.insee.vtl.lab.utils.Utils.*;
 
 @Service
 @ConfigurationProperties(prefix = "spark")
@@ -74,7 +75,6 @@ public class SparkEngine {
     private SparkDataset readParquetDataset(SparkSession spark, S3ForBindings s3, Integer limit) {
         String path = s3.getUrl();
         Dataset<Row> dataset = spark.read().parquet(path + "/data");
-        Encoder<Structured.Component> encoder = Encoders.kryo(Structured.Component.class);
         Dataset<Row> json = spark.read()
                 .option("multiLine", "true")
                 .json(path + "/structure");
@@ -91,9 +91,14 @@ public class SparkEngine {
     }
 
     private SparkDataset readJDBCDataset(SparkSession spark, QueriesForBindings queriesForBindings, Integer limit) {
-        // Assume we only support Postgre for now
+        String jdbcPrefix = "";
+        try {
+            jdbcPrefix = getJDBCPrefix(queriesForBindings.getDbtype());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         Dataset<Row> ds = spark.read().format("jdbc")
-                .option("url", "jdbc:postgresql://" + queriesForBindings.getUrl())
+                .option("url", jdbcPrefix + queriesForBindings.getUrl())
                 .option("user", queriesForBindings.getUser())
                 .option("password", queriesForBindings.getPassword())
                 .option("query", queriesForBindings.getQuery())

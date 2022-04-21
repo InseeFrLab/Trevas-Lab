@@ -21,6 +21,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static fr.insee.vtl.lab.utils.Utils.getJDBCPrefix;
+
 @Service
 public class InMemoryEngine {
 
@@ -33,10 +35,17 @@ public class InMemoryEngine {
 
         if (queriesForBindings != null) {
             queriesForBindings.forEach((k, v) -> {
+                String jdbcPrefix = "";
+                try {
+                    jdbcPrefix = getJDBCPrefix(v.getDbtype());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                String finalJdbcPrefix = jdbcPrefix;
                 JDBCDataset jdbcDataset = new JDBCDataset(() -> {
                     try (
                             Connection connection = DriverManager.getConnection(
-                                    "jdbc:postgresql://" + v.getUrl(),
+                                    finalJdbcPrefix + v.getUrl(),
                                     v.getUser(),
                                     v.getPassword())
                     ) {
@@ -68,9 +77,15 @@ public class InMemoryEngine {
             QueriesForBindings queriesForBindings) {
         List<Map<String, Object>> structure = new ArrayList<>();
         List<List<Object>> points = new ArrayList<>();
+        String jdbcPrefix = "";
+        try {
+            jdbcPrefix = getJDBCPrefix(queriesForBindings.getDbtype());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         try (
                 Connection connection = DriverManager.getConnection(
-                        "jdbc:postgresql://" + queriesForBindings.getUrl(),
+                        jdbcPrefix + queriesForBindings.getUrl(),
                         queriesForBindings.getUser(),
                         queriesForBindings.getPassword())
         ) {
