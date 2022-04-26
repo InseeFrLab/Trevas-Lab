@@ -43,15 +43,14 @@ public class SparkEngine {
     private ObjectMapper objectMapper;
 
     private SparkSession buildSparkSession(ExecutionType type, Boolean addJars) throws Exception {
+        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
+        SparkSession.Builder sparkBuilder = SparkSession.builder()
+                .config(conf)
+                .appName("vtl-lab");
         if (ExecutionType.LOCAL == type) {
-            SparkSession.Builder sparkBuilder = SparkSession.builder()
-                    .appName("vtl-lab")
-                    .master("local");
+                    sparkBuilder.master("local");
             return sparkBuilder.getOrCreate();
         } else if (ExecutionType.CLUSTER_STATIC == type || ExecutionType.CLUSTER_KUBERNETES == type) {
-            SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
-            SparkSession.Builder sparkBuilder = SparkSession.builder()
-                    .config(conf);
             if (addJars) {
                 // Note: all the dependencies are required for deserialization.
                 // See https://stackoverflow.com/questions/28079307
@@ -63,8 +62,6 @@ public class SparkEngine {
                         "/vtl-engine.jar",
                         "/postgresql.jar"
                 ));
-                // Add JDBC Driver Jars
-//                sparkBuilder.config("spark.jars.package", "org.postgresql:postgresql:42.3.3");
             }
             if (ExecutionType.CLUSTER_KUBERNETES == type)
                 sparkBuilder.master("k8s://https://kubernetes.default.svc.cluster.local:443");
