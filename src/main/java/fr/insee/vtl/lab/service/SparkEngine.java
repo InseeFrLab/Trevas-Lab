@@ -48,10 +48,12 @@ public class SparkEngine {
                 .config(conf)
                 .appName("vtl-lab");
         if (ExecutionType.LOCAL == type) {
-                    sparkBuilder.master("local");
+            sparkBuilder.master("local");
             return sparkBuilder.getOrCreate();
         } else if (ExecutionType.CLUSTER_STATIC == type || ExecutionType.CLUSTER_KUBERNETES == type) {
             if (addJars) {
+                String driver = "org.postgresql.Driver";
+                Class.forName(driver);
                 // Note: all the dependencies are required for deserialization.
                 // See https://stackoverflow.com/questions/28079307
                 sparkBuilder.config("spark.jars", String.join(",",
