@@ -72,9 +72,12 @@ public class Utils {
         Bindings output = new SimpleBindings();
         input.forEach((k, v) -> {
             if (!k.startsWith("$")) {
-                Dataset<Row> sparkDs = ((SparkDataset) v).getSparkDataset();
-                if (limit != null) output.put(k, new SparkDataset(sparkDs.limit(limit), Map.of()));
-                else output.put(k, new SparkDataset(sparkDs, Map.of()));
+                if (v instanceof SparkDataset) {
+                    Dataset<Row> sparkDs = ((SparkDataset) v).getSparkDataset();
+                    if (limit != null) output.put(k, new SparkDataset(sparkDs.limit(limit), Map.of()));
+                    else output.put(k, new SparkDataset(sparkDs, Map.of()));
+                }
+                else output.put(k, v);
             }
         });
         return output;
