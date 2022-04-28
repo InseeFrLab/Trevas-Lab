@@ -60,7 +60,6 @@ public class Utils {
                     conf.set(normalizedName, entry.getValue());
                 }
             }
-
             return conf;
         } catch (Exception ex) {
             logger.error("could not load spark config from {}", stringPath, ex);

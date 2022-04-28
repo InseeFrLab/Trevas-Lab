@@ -57,7 +57,7 @@ public class SparkEngine {
                 Class.forName(driver);
                 // Note: all the dependencies are required for deserialization.
                 // See https://stackoverflow.com/questions/28079307
-                conf.set("spark.jars", String.join(",",
+                conf.set("spark.jars.packages", String.join(",",
                         "/vtl-spark.jar",
                         "/vtl-model.jar",
                         "/vtl-jackson.jar",
