@@ -201,7 +201,8 @@ public class SparkEngine {
             Structured.Component component = e.getValue();
             Map<String, Object> rowMap = new HashMap<>();
             rowMap.put("name", component.getName());
-            rowMap.put("type", component.getType());
+            rowMap.put("type", component.getType().getSimpleName());
+            rowMap.put("role", component.getRole());
             structure.add(rowMap);
         });
         editVisualize.setDataStructure(structure);
