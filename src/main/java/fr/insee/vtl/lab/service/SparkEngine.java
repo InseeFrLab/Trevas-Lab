@@ -53,8 +53,6 @@ public class SparkEngine {
             return sparkBuilder.getOrCreate();
         } else if (ExecutionType.CLUSTER_STATIC == type || ExecutionType.CLUSTER_KUBERNETES == type) {
             if (addJars) {
-                String driver = "org.postgresql.Driver";
-                Class.forName(driver);
                 // Note: all the dependencies are required for deserialization.
                 // See https://stackoverflow.com/questions/28079307
                 conf.set("spark.jars.packages", String.join(",",
@@ -77,8 +75,8 @@ public class SparkEngine {
 
     private SparkDataset readParquetDataset(SparkSession spark, S3ForBindings s3, Integer limit) throws Exception {
         String path = s3.getUrl();
-        Dataset<Row> dataset = null;
-        Dataset<Row> json = null;
+        Dataset<Row> dataset;
+        Dataset<Row> json;
         try {
             dataset = spark.read().parquet(path + "/data");
             json = spark.read()
@@ -87,16 +85,17 @@ public class SparkEngine {
         } catch (Exception e) {
             throw new Exception("An error has occured while loading: " + path);
         }
-        List<Structured.Component> components = json.collectAsList().stream().map(r -> {
-                    String name = r.getAs("name");
-                    Class type = r.getAs("type").getClass();
-                    fr.insee.vtl.model.Dataset.Role role = fr.insee.vtl.model.Dataset.Role.valueOf(r.getAs("role"));
-                    return new Structured.Component(name, type, role);
-                }
-        ).collect(Collectors.toList());
-        Structured.DataStructure structure = new Structured.DataStructure(components);
-        if (limit != null) return new SparkDataset(dataset.limit(limit), structure);
-        return new SparkDataset(dataset, structure);
+        Map<String, fr.insee.vtl.model.Dataset.Role> components = json.collectAsList().stream().map(r -> {
+                            String name = r.getAs("name");
+                            Class type = r.getAs("type").getClass();
+                            fr.insee.vtl.model.Dataset.Role role = fr.insee.vtl.model.Dataset.Role.valueOf(r.getAs("role"));
+                            return new Structured.Component(name, type, role);
+                        }
+                ).collect(Collectors.toList())
+                .stream()
+                .collect(Collectors.toMap(Structured.Component::getName, Structured.Component::getRole));
+        if (limit != null) return new SparkDataset(dataset.limit(limit), components);
+        return new SparkDataset(dataset, components);
     }
 
     private SparkDataset readJDBCDataset(SparkSession spark, QueriesForBindings queriesForBindings, Integer limit) {
