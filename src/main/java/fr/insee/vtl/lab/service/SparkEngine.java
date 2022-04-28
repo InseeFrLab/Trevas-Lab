@@ -1,6 +1,5 @@
 package fr.insee.vtl.lab.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.insee.vtl.lab.model.*;
 import fr.insee.vtl.lab.utils.Utils;
@@ -36,9 +35,6 @@ public class SparkEngine {
 
     private static final Logger logger = LogManager.getLogger(SparkEngine.class);
 
-    private static final TypeReference<List<Structured.Component>> COMPONENT_TYPE = new TypeReference<>() {
-    };
-
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -46,30 +42,32 @@ public class SparkEngine {
         SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .appName("vtl-lab");
+        if (addJars) {
+            // Note: all the dependencies are required for deserialization.
+            // See https://stackoverflow.com/questions/28079307
+            conf.set("spark.jars.packages", String.join(",",
+                    "fr.insee.trevas:vtl-spark:0.4.0",
+                    "fr.insee.trevas:vtl-model:0.4.0",
+                    "fr.insee.trevas:vtl-parser:0.4.0",
+                    "fr.insee.trevas:vtl-engine:0.4.0",
+                    "org.postgresql:postgresql:42.3.4"
+            ));
+        }
+        sparkBuilder.config(conf);
         if (ExecutionType.LOCAL == type) {
             sparkBuilder
-                    .config(conf)
                     .master("local");
             return sparkBuilder.getOrCreate();
-        } else if (ExecutionType.CLUSTER_STATIC == type || ExecutionType.CLUSTER_KUBERNETES == type) {
-            if (addJars) {
-                // Note: all the dependencies are required for deserialization.
-                // See https://stackoverflow.com/questions/28079307
-                conf.set("spark.jars.packages", String.join(",",
-                        "/vtl-spark.jar",
-                        "/vtl-model.jar",
-                        "/vtl-parser.jar",
-                        "/vtl-engine.jar",
-                        "/postgresql.jar"
-                ));
-            }
-            if (ExecutionType.CLUSTER_KUBERNETES == type) {
-                sparkBuilder
-                        .master("k8s://https://kubernetes.default.svc.cluster.local:443");
-            }
-            sparkBuilder.config(conf);
+        } else if (ExecutionType.CLUSTER_STATIC == type) {
+            sparkBuilder
+                    // Add props link
+                    .master("local");
+        } else if (ExecutionType.CLUSTER_KUBERNETES == type) {
+            sparkBuilder
+                    .master("k8s://https://kubernetes.default.svc.cluster.local:443");
             return sparkBuilder.getOrCreate();
-        } else throw new Exception("Unknow execution type: " + type);
+        }
+        throw new Exception("Unknow execution type: " + type);
     }
 
     private SparkDataset readParquetDataset(SparkSession spark, S3ForBindings s3, Integer limit) throws Exception {
@@ -173,7 +171,8 @@ public class SparkEngine {
             Structured.Component component = e.getValue();
             Map<String, Object> row = new HashMap<>();
             row.put("name", component.getName());
-            row.put("type", component.getType());
+            row.put("type", component.getType().getSimpleName());
+            row.put("role", component.getRole());
             structure.add(row);
         });
         editVisualize.setDataStructure(structure);
