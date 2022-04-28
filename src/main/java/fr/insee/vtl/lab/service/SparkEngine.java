@@ -46,11 +46,11 @@ public class SparkEngine {
             // Note: all the dependencies are required for deserialization.
             // See https://stackoverflow.com/questions/28079307
             conf.set("spark.jars.packages", String.join(",",
-                    "fr.insee.trevas:vtl-spark:0.4.0",
-                    "fr.insee.trevas:vtl-model:0.4.0",
-                    "fr.insee.trevas:vtl-parser:0.4.0",
-                    "fr.insee.trevas:vtl-engine:0.4.0",
-                    "org.postgresql:postgresql:42.3.4"
+                    "/vtl-spark.jar",
+                    "/vtl-model.jar",
+                    "/vtl-parser.jar",
+                    "/vtl-engine.jar",
+                    "/vtl-jackson.jar"
             ));
         }
         sparkBuilder.config(conf);
