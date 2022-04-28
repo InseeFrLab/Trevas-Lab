@@ -58,7 +58,6 @@ public class SparkEngine {
                 conf.set("spark.jars.packages", String.join(",",
                         "/vtl-spark.jar",
                         "/vtl-model.jar",
-                        "/vtl-jackson.jar",
                         "/vtl-parser.jar",
                         "/vtl-engine.jar",
                         "/postgresql.jar"
