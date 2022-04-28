@@ -71,12 +71,18 @@ public class SparkEngine {
         } else throw new Exception("Unknow execution type: " + type);
     }
 
-    private SparkDataset readParquetDataset(SparkSession spark, S3ForBindings s3, Integer limit) {
+    private SparkDataset readParquetDataset(SparkSession spark, S3ForBindings s3, Integer limit) throws Exception {
         String path = s3.getUrl();
-        Dataset<Row> dataset = spark.read().parquet(path + "/data");
-        Dataset<Row> json = spark.read()
-                .option("multiLine", "true")
-                .json(path + "/structure");
+        Dataset<Row> dataset = null;
+        Dataset<Row> json = null;
+        try {
+            dataset = spark.read().parquet(path + "/data");
+            json = spark.read()
+                    .option("multiLine", "true")
+                    .json(path + "/structure");
+        } catch (Exception e) {
+            throw new Exception("An error has occured while loading: " + path);
+        }
         List<Structured.Component> components = json.collectAsList().stream().map(r -> {
                     String name = r.getAs("name");
                     Class type = r.getAs("type").getClass();
