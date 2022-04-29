@@ -1,5 +1,6 @@
 package fr.insee.vtl.lab.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.insee.vtl.lab.model.*;
 import fr.insee.vtl.lab.utils.Utils;
@@ -21,6 +22,10 @@ import javax.script.Bindings;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.SimpleBindings;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -160,6 +165,18 @@ public class SparkEngine {
             QueriesForBindings queriesForBindings,
             ExecutionType type) throws Exception {
 
+        RolesMapping roles = null;
+        String roleUrl = queriesForBindings.getRoleUrl();
+        if (null != roleUrl) {
+            try {
+                roles = objectMapper.readValue(new URL(queriesForBindings.getRoleUrl()), RolesMapping.class);
+            } catch (JsonProcessingException | MalformedURLException e) {
+                throw new SQLException("Error while fetching roles");
+            } catch (IOException e) {
+                throw new SQLException("Role URL malformed");
+            }
+        }
+
         SparkSession spark = buildSparkSession(type, false);
 
         fr.insee.vtl.model.Dataset trevasDs = readJDBCDataset(spark, queriesForBindings, 1000);
@@ -167,12 +184,17 @@ public class SparkEngine {
         EditVisualize editVisualize = new EditVisualize();
 
         List<Map<String, Object>> structure = new ArrayList<>();
+        RolesMapping finalRoles = roles;
         trevasDs.getDataStructure().entrySet().forEach(e -> {
             Structured.Component component = e.getValue();
             Map<String, Object> row = new HashMap<>();
             row.put("name", component.getName());
             row.put("type", component.getType().getSimpleName());
-            row.put("role", component.getRole());
+            // Default has to be handled by Trevas
+            row.put("role", "MEASURE");
+            if (null != finalRoles && null != finalRoles.getRoles().get(component.getName())) {
+                row.put("role", finalRoles.getRoles().get(component.getName()));
+            }
             structure.add(row);
         });
         editVisualize.setDataStructure(structure);
