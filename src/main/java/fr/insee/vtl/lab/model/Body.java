@@ -8,6 +8,7 @@ public class Body {
     private String vtlScript;
     private Bindings bindings;
     private Map<String, QueriesForBindings> queriesForBindings;
+    private Map<String, QueriesForBindingsToSave> queriesForBindingsToSave;
     private Map<String, S3ForBindings> s3ForBindings;
     private ToSave toSave;
 
@@ -49,5 +50,13 @@ public class Body {
 
     public void setToSave(ToSave toSave) {
         this.toSave = toSave;
+    }
+
+    public Map<String, QueriesForBindingsToSave> getQueriesForBindingsToSave() {
+        return queriesForBindingsToSave;
+    }
+
+    public void setQueriesForBindingsToSave(Map<String, QueriesForBindingsToSave> queriesForBindingsToSave) {
+        this.queriesForBindingsToSave = queriesForBindingsToSave;
     }
 }

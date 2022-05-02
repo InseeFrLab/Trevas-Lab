@@ -1,6 +1,5 @@
 package fr.insee.vtl.lab.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.insee.vtl.lab.model.*;
 import fr.insee.vtl.lab.utils.Utils;
@@ -22,10 +21,6 @@ import javax.script.Bindings;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.SimpleBindings;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -152,6 +147,12 @@ public class SparkEngine {
         engine.eval(script);
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
 
+        Map<String, QueriesForBindingsToSave> queriesForBindingsToSave = body.getQueriesForBindingsToSave();
+
+        if (null != queriesForBindingsToSave) {
+            writeSparkDatasetsJDBC(outputBindings, queriesForBindingsToSave, objectMapper, spark);
+        }
+
         Map<String, S3ForBindings> s3ToSave = body.getToSave().getS3ForBindings();
         if (null != s3ToSave) {
             writeSparkDatasets(outputBindings, s3ToSave, objectMapper, spark);
@@ -165,18 +166,6 @@ public class SparkEngine {
             QueriesForBindings queriesForBindings,
             ExecutionType type) throws Exception {
 
-        RolesMapping roles = null;
-        String roleUrl = queriesForBindings.getRoleUrl();
-        if (null != roleUrl) {
-            try {
-                roles = objectMapper.readValue(new URL(queriesForBindings.getRoleUrl()), RolesMapping.class);
-            } catch (JsonProcessingException | MalformedURLException e) {
-                throw new SQLException("Error while fetching roles");
-            } catch (IOException e) {
-                throw new SQLException("Role URL malformed");
-            }
-        }
-
         SparkSession spark = buildSparkSession(type, false);
 
         fr.insee.vtl.model.Dataset trevasDs = readJDBCDataset(spark, queriesForBindings, 1000);
@@ -184,7 +173,9 @@ public class SparkEngine {
         EditVisualize editVisualize = new EditVisualize();
 
         List<Map<String, Object>> structure = new ArrayList<>();
-        RolesMapping finalRoles = roles;
+
+        Map<String, fr.insee.vtl.model.Dataset.Role> roles = getRoles(queriesForBindings.getRoleUrl(), spark);
+
         trevasDs.getDataStructure().entrySet().forEach(e -> {
             Structured.Component component = e.getValue();
             Map<String, Object> row = new HashMap<>();
@@ -192,8 +183,8 @@ public class SparkEngine {
             row.put("type", component.getType().getSimpleName());
             // Default has to be handled by Trevas
             row.put("role", "MEASURE");
-            if (null != finalRoles && null != finalRoles.getRoles().get(component.getName())) {
-                row.put("role", finalRoles.getRoles().get(component.getName()));
+            if (null != roles && null != roles.get(component.getName())) {
+                row.put("role", roles.get(component.getName()));
             }
             structure.add(row);
         });
@@ -216,18 +207,46 @@ public class SparkEngine {
 
         fr.insee.vtl.model.Dataset trevasDs = readParquetDataset(spark, s3ForBindings, 1000);
 
+        Map<String, fr.insee.vtl.model.Dataset.Role> roles = getRoles(s3ForBindings.getUrl() + "/structure", spark);
+
         List<Map<String, Object>> structure = new ArrayList<>();
         trevasDs.getDataStructure().entrySet().forEach(e -> {
             Structured.Component component = e.getValue();
             Map<String, Object> rowMap = new HashMap<>();
             rowMap.put("name", component.getName());
             rowMap.put("type", component.getType().getSimpleName());
-            rowMap.put("role", component.getRole());
+            // Default has to be handled by Trevas
+            rowMap.put("role", "MEASURE");
+            if (null != roles && null != roles.get(component.getName())) {
+                rowMap.put("role", roles.get(component.getName()));
+            }
             structure.add(rowMap);
         });
         editVisualize.setDataStructure(structure);
         editVisualize.setDataPoints(trevasDs.getDataAsList());
         return ResponseEntity.status(HttpStatus.OK)
                 .body(editVisualize);
+    }
+
+    public Map<String, fr.insee.vtl.model.Dataset.Role> getRoles(String path, SparkSession spark) throws Exception {
+        Dataset<Row> json;
+        try {
+            json = spark.read()
+                    .option("multiLine", "true")
+                    .json(path);
+        } catch (Exception e) {
+            throw new Exception("An error has occured while loading: " + path);
+        }
+        Map<String, fr.insee.vtl.model.Dataset.Role> roles =
+                json.collectAsList().stream()
+                        .map(r -> {
+                                    String name = r.getAs("name");
+                                    fr.insee.vtl.model.Dataset.Role role = fr.insee.vtl.model.Dataset.Role.valueOf(r.getAs("role"));
+                                    return new Role(name, role);
+                                }
+                        ).collect(Collectors.toList())
+                        .stream()
+                        .collect(Collectors.toMap(Role::getName, Role::getRole));
+        return roles;
     }
 }

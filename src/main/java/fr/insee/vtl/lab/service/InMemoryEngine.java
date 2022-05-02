@@ -1,10 +1,10 @@
 package fr.insee.vtl.lab.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.insee.vtl.jdbc.JDBCDataset;
 import fr.insee.vtl.lab.model.*;
 import fr.insee.vtl.lab.utils.Utils;
+import fr.insee.vtl.model.Dataset;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,9 +15,6 @@ import org.springframework.stereotype.Service;
 import javax.script.Bindings;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import static fr.insee.vtl.lab.utils.Utils.getJDBCPrefix;
+import static fr.insee.vtl.lab.utils.Utils.getRoles;
 
 @Service
 public class InMemoryEngine {
@@ -48,6 +46,7 @@ public class InMemoryEngine {
                     e.printStackTrace();
                 }
                 String finalJdbcPrefix = jdbcPrefix;
+                // TODO: Support Roles when Trevas will be able to
                 JDBCDataset jdbcDataset = new JDBCDataset(() -> {
                     try (
                             Connection connection = DriverManager.getConnection(
@@ -81,18 +80,8 @@ public class InMemoryEngine {
     public ResponseEntity<EditVisualize> getJDBC(
             User user,
             QueriesForBindings queriesForBindings) throws SQLException {
-        RolesMapping roles = null;
         String roleUrl = queriesForBindings.getRoleUrl();
-        if (null != roleUrl) {
-            try {
-                roles = objectMapper.readValue(new URL(queriesForBindings.getRoleUrl()), RolesMapping.class);
-            } catch (JsonProcessingException | MalformedURLException e) {
-                throw new SQLException("Error while fetching roles");
-            } catch (IOException e) {
-                throw new SQLException("Role URL malformed");
-            }
-        }
-
+        Map<String, Dataset.Role> roles = getRoles(roleUrl, objectMapper);
         List<Map<String, Object>> structure = new ArrayList<>();
         List<List<Object>> points = new ArrayList<>();
         String jdbcPrefix = "";
@@ -123,8 +112,8 @@ public class InMemoryEngine {
                     row.put("type", colType);
                     // Default has to be handled by Trevas
                     row.put("role", "MEASURE");
-                    if (null != roles && null != roles.getRoles().get(colName)) {
-                        row.put("role", roles.getRoles().get(colName));
+                    if (null != roles && null != roles.get(colName)) {
+                        row.put("role", roles.get(colName));
                     }
                     structure.add(row);
                 }
