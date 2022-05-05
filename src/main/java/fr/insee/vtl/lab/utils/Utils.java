@@ -57,6 +57,7 @@ public class Utils {
         try {
             SparkConf conf = new SparkConf(true);
             if (stringPath != null) {
+                logger.warn("Using spark.conf is deprecated");
                 Path path = Path.of(stringPath, "spark.conf");
                 org.apache.spark.util.Utils.loadDefaultSparkProperties(conf, path.normalize().toAbsolutePath().toString());
             }
@@ -64,7 +65,10 @@ public class Utils {
             for (Map.Entry<String, String> entry : System.getenv().entrySet()) {
                 var normalizedName = entry.getKey().toLowerCase().replace("_", ".");
                 if (normalizedName.startsWith("spark.")) {
-                    conf.set(normalizedName, entry.getValue());
+                    // TODO: find a better way to handle spark props
+                    if (normalizedName.contains("dynamicallocation")) {
+                        conf.set(normalizedName.replace("dynamicallocation", "dynamicAllocation"), entry.getValue());
+                    } else conf.set(normalizedName, entry.getValue());
                 }
             }
             return conf;
