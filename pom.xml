@@ -23,6 +23,7 @@
 
     <properties>
         <java.version>11</java.version>
+        <trevas.version>0.4.1</trevas.version>
     </properties>
 
     <dependencyManagement>
@@ -40,17 +41,17 @@
         <dependency>
             <groupId>fr.insee.trevas</groupId>
             <artifactId>vtl-engine</artifactId>
-            <version>0.4.0</version>
+            <version>${trevas.version}</version>
         </dependency>
         <dependency>
             <groupId>fr.insee.trevas</groupId>
             <artifactId>vtl-jdbc</artifactId>
-            <version>0.4.0</version>
+            <version>${trevas.version}</version>
         </dependency>
         <dependency>
             <groupId>fr.insee.trevas</groupId>
             <artifactId>vtl-spark</artifactId>
-            <version>0.4.0</version>
+            <version>${trevas.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -61,7 +62,7 @@
         <dependency>
             <groupId>fr.insee.trevas</groupId>
             <artifactId>vtl-jackson</artifactId>
-            <version>0.3.0</version>
+            <version>${trevas.version}</version>
             <scope>compile</scope>
         </dependency>
 
