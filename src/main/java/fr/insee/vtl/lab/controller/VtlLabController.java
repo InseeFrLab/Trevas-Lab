@@ -141,6 +141,14 @@ public class VtlLabController {
                         job.outputs.put(k, output);
                     });
                 }
+                Map<String, QueriesForBindingsToSave> jdbcToSave = body.getToSave().getJdbcForBindingsToSave();
+                if (jdbcToSave != null) {
+                    jdbcToSave.forEach((k, v) -> {
+                        var output = new Output();
+                        output.location = k;
+                        job.outputs.put(k, output);
+                    });
+                }
                 job.status = Status.RUNNING;
                 job.bindings = execution.execute();
                 for (String variableName : job.outputs.keySet()) {

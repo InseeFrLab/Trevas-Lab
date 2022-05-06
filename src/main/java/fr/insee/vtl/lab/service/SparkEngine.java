@@ -147,15 +147,14 @@ public class SparkEngine {
         engine.eval(script);
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
 
-        Map<String, QueriesForBindingsToSave> queriesForBindingsToSave = body.getQueriesForBindingsToSave();
-
+        Map<String, QueriesForBindingsToSave> queriesForBindingsToSave = body.getToSave().getJdbcForBindingsToSave();
         if (null != queriesForBindingsToSave) {
             writeSparkDatasetsJDBC(outputBindings, queriesForBindingsToSave, objectMapper, spark);
         }
 
         Map<String, S3ForBindings> s3ToSave = body.getToSave().getS3ForBindings();
         if (null != s3ToSave) {
-            writeSparkDatasets(outputBindings, s3ToSave, objectMapper, spark);
+            writeSparkS3Datasets(outputBindings, s3ToSave, objectMapper, spark);
         }
 
         return Utils.getSparkBindings(outputBindings, 1000);
@@ -174,7 +173,8 @@ public class SparkEngine {
 
         List<Map<String, Object>> structure = new ArrayList<>();
 
-        Map<String, fr.insee.vtl.model.Dataset.Role> roles = getRoles(queriesForBindings.getRoleUrl(), spark);
+        String roleUrl = queriesForBindings.getRoleUrl();
+        Map<String, fr.insee.vtl.model.Dataset.Role> roles = !roleUrl.equals("") ? getRoles(roleUrl, spark) : Map.of();
 
         trevasDs.getDataStructure().entrySet().forEach(e -> {
             Structured.Component component = e.getValue();

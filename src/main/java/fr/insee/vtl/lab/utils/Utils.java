@@ -112,23 +112,26 @@ public class Utils {
                     .option("user", values.getUser())
                     .option("password", values.getPassword())
                     .save();
-            // Trick to write json thanks to spark
-            String json = "";
-            try {
-                json = objectMapper.writeValueAsString(dataset.getDataStructure().values());
-            } catch (JsonProcessingException e) {
-                e.printStackTrace();
+            String rolesUrl = values.getRoleUrl();
+            if (rolesUrl == null || !rolesUrl.equals("")) {
+                // Trick to write json thanks to spark
+                String json = "";
+                try {
+                    json = objectMapper.writeValueAsString(dataset.getDataStructure().values());
+                } catch (JsonProcessingException e) {
+                    e.printStackTrace();
+                }
+                JavaSparkContext.fromSparkContext(spark.sparkContext())
+                        .parallelize(List.of(json))
+                        .coalesce(1)
+                        .saveAsTextFile(values.getRoleUrl());
             }
-            JavaSparkContext.fromSparkContext(spark.sparkContext())
-                    .parallelize(List.of(json))
-                    .coalesce(1)
-                    .saveAsTextFile(values.getRoleUrl());
         });
     }
 
-    public static void writeSparkDatasets(Bindings bindings, Map<String, S3ForBindings> s3toSave,
-                                          ObjectMapper objectMapper,
-                                          SparkSession spark) {
+    public static void writeSparkS3Datasets(Bindings bindings, Map<String, S3ForBindings> s3toSave,
+                                            ObjectMapper objectMapper,
+                                            SparkSession spark) {
         s3toSave.forEach((name, values) -> {
             SparkDataset dataset = (SparkDataset) bindings.get(name);
             writeSparkDataset(objectMapper, spark, values.getUrl(), dataset);
