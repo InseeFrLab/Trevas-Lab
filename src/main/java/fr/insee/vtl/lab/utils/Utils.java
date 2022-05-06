@@ -106,6 +106,7 @@ public class Utils {
                 e.printStackTrace();
             }
             dsSpark.write()
+                    .mode(SaveMode.Overwrite)
                     .format("jdbc")
                     .option("url", jdbcPrefix + values.getUrl())
                     .option("dbtable", values.getTable())
@@ -140,7 +141,7 @@ public class Utils {
 
     public static void writeSparkDataset(ObjectMapper objectMapper, SparkSession spark, String location, SparkDataset dataset) {
         Dataset<Row> sparkDataset = dataset.getSparkDataset();
-        sparkDataset.write().mode(SaveMode.ErrorIfExists).parquet(location + "/data");
+        sparkDataset.write().mode(SaveMode.Overwrite).parquet(location + "/data");
         // Trick to write json thanks to spark
         String json = "";
         try {
