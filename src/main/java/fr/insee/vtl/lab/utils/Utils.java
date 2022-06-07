@@ -67,8 +67,18 @@ public class Utils {
                 if (normalizedName.startsWith("spark.")) {
                     // TODO: find a better way to handle spark props
                     if (normalizedName.contains("dynamicallocation")) {
-                        conf.set(normalizedName.replace("dynamicallocation", "dynamicAllocation"), entry.getValue());
-                    } else conf.set(normalizedName, entry.getValue());
+                        normalizedName = normalizedName.replace("dynamicallocation", "dynamicAllocation");
+                    }
+                    if (normalizedName.contains("shuffletracking")) {
+                        normalizedName = normalizedName.replace("shuffletracking", "shuffleTracking");
+                    }
+                    if (normalizedName.contains("minexecutors")) {
+                        normalizedName = normalizedName.replace("minexecutors", "minExecutors");
+                    }
+                    if (normalizedName.contains("maxexecutors")) {
+                        normalizedName = normalizedName.replace("maxexecutors", "maxExecutors");
+                    }
+                    conf.set(normalizedName, entry.getValue());
                 }
             }
             return conf;
