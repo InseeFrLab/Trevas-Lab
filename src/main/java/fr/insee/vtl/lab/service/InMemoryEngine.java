@@ -2,7 +2,10 @@ package fr.insee.vtl.lab.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.insee.vtl.jdbc.JDBCDataset;
-import fr.insee.vtl.lab.model.*;
+import fr.insee.vtl.lab.model.Body;
+import fr.insee.vtl.lab.model.EditVisualize;
+import fr.insee.vtl.lab.model.QueriesForBindings;
+import fr.insee.vtl.lab.model.User;
 import fr.insee.vtl.lab.utils.Utils;
 import fr.insee.vtl.model.Dataset;
 import org.apache.logging.log4j.LogManager;
@@ -81,7 +84,7 @@ public class InMemoryEngine {
             User user,
             QueriesForBindings queriesForBindings) throws SQLException {
         String roleUrl = queriesForBindings.getRoleUrl();
-        Map<String, Dataset.Role> roles = getRoles(roleUrl, objectMapper);
+        Map<String, Dataset.Role> roles = !roleUrl.equals("") ? getRoles(roleUrl, objectMapper) : Map.of();
         List<Map<String, Object>> structure = new ArrayList<>();
         List<List<Object>> points = new ArrayList<>();
         String jdbcPrefix = "";

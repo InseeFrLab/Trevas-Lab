@@ -12,6 +12,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -38,6 +39,15 @@ public class SparkEngine {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Value("${spark.cluster.master.local}")
+    private String sparkClusterMasterLocal;
+
+    @Value("${spark.cluster.master.static}")
+    private String sparkClusterMasterStatic;
+
+    @Value("${spark.cluster.master.kubernetes}")
+    private String sparkClusterMasterKubernetes;
+
     private SparkSession buildSparkSession(ExecutionType type, Boolean addJars) throws Exception {
         SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
         SparkSession.Builder sparkBuilder = SparkSession.builder()
@@ -56,15 +66,14 @@ public class SparkEngine {
         sparkBuilder.config(conf);
         if (ExecutionType.LOCAL == type) {
             sparkBuilder
-                    .master("local");
+                    .master(sparkClusterMasterLocal);
             return sparkBuilder.getOrCreate();
         } else if (ExecutionType.CLUSTER_STATIC == type) {
             sparkBuilder
-                    // Add props link
-                    .master("local");
+                    .master(sparkClusterMasterStatic);
         } else if (ExecutionType.CLUSTER_KUBERNETES == type) {
             sparkBuilder
-                    .master("k8s://https://kubernetes.default.svc.cluster.local:443");
+                    .master(sparkClusterMasterKubernetes);
             return sparkBuilder.getOrCreate();
         }
         throw new Exception("Unknow execution type: " + type);
@@ -229,6 +238,7 @@ public class SparkEngine {
     }
 
     public Map<String, fr.insee.vtl.model.Dataset.Role> getRoles(String path, SparkSession spark) throws Exception {
+        if (null == path || path.equals("")) return Map.of();
         Dataset<Row> json;
         try {
             json = spark.read()
