@@ -238,6 +238,7 @@ public class SparkEngine {
     }
 
     public Map<String, fr.insee.vtl.model.Dataset.Role> getRoles(String path, SparkSession spark) throws Exception {
+        if (null == path || path.equals("")) return Map.of();
         Dataset<Row> json;
         try {
             json = spark.read()
