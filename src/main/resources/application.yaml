@@ -1,5 +1,11 @@
 auth:
   mode: "NONE"
+spark:
+  cluster:
+    master:
+      local: "local"
+      static: "local"
+      kubernetes: "local"
 spring:
   security:
     oauth2:
