@@ -54,20 +54,7 @@ public class SparkEngine {
             ));
         }
         sparkBuilder.config(conf);
-        if (ExecutionType.LOCAL == type) {
-            sparkBuilder
-                    .master("local");
-            return sparkBuilder.getOrCreate();
-        } else if (ExecutionType.CLUSTER_STATIC == type) {
-            sparkBuilder
-                    // Add props link
-                    .master("local");
-        } else if (ExecutionType.CLUSTER_KUBERNETES == type) {
-            sparkBuilder
-                    .master("k8s://https://kubernetes.default.svc.cluster.local:443");
-            return sparkBuilder.getOrCreate();
-        }
-        throw new Exception("Unknow execution type: " + type);
+        return sparkBuilder.getOrCreate();
     }
 
     private SparkDataset readParquetDataset(SparkSession spark, S3ForBindings s3, Integer limit) throws Exception {
