@@ -14,8 +14,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import javax.script.Bindings;
-import javax.script.ScriptException;
-import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -74,12 +72,9 @@ public class VtlLabController {
             job = executeJob(body, () -> {
                 try {
                     return inMemoryEngine.executeInMemory(userProvider.getUser(auth), body);
-                } catch (SQLException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
-                    throw new ResponseStatusException(
-                            HttpStatus.INTERNAL_SERVER_ERROR,
-                            "SQLException error: " + type
-                    );
+                    throw new Exception(e.getMessage());
                 }
             });
         } else if (mode == ExecutionMode.SPARK) {
@@ -178,7 +173,7 @@ public class VtlLabController {
 
     @FunctionalInterface
     interface VtlJob {
-        Bindings execute() throws ScriptException;
+        Bindings execute() throws Exception;
     }
 
 }

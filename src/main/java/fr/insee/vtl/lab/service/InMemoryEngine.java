@@ -35,7 +35,7 @@ public class InMemoryEngine {
     @Autowired
     private ObjectMapper objectMapper;
 
-    public Bindings executeInMemory(User user, Body body) throws SQLException {
+    public Bindings executeInMemory(User user, Body body) throws Exception {
         String script = body.getVtlScript();
         Bindings bindings = body.getBindings();
         Map<String, QueriesForBindings> queriesForBindings = body.getQueriesForBindings();
@@ -76,8 +76,8 @@ public class InMemoryEngine {
             return output;
         } catch (Exception e) {
             logger.warn("Eval failed: ", e);
+            throw new Exception(e);
         }
-        return bindings;
     }
 
     public ResponseEntity<EditVisualize> getJDBC(
