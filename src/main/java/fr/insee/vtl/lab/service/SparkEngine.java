@@ -183,7 +183,8 @@ public class SparkEngine {
         List<Map<String, Object>> structure = new ArrayList<>();
 
         String roleUrl = queriesForBindings.getRoleUrl();
-        Map<String, fr.insee.vtl.model.Dataset.Role> roles = !roleUrl.equals("") ? getRoles(roleUrl, spark) : Map.of();
+        Map<String, fr.insee.vtl.model.Dataset.Role> roles =
+                roleUrl != null && !roleUrl.equals("") ? getRoles(roleUrl, spark) : Map.of();
 
         trevasDs.getDataStructure().entrySet().forEach(e -> {
             Structured.Component component = e.getValue();

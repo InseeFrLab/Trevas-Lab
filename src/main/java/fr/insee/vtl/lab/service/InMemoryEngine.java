@@ -84,7 +84,8 @@ public class InMemoryEngine {
             User user,
             QueriesForBindings queriesForBindings) throws SQLException {
         String roleUrl = queriesForBindings.getRoleUrl();
-        Map<String, Dataset.Role> roles = !roleUrl.equals("") ? getRoles(roleUrl, objectMapper) : Map.of();
+        Map<String, Dataset.Role> roles =
+                roleUrl != null && !roleUrl.equals("") ? getRoles(roleUrl, objectMapper) : Map.of();
         List<Map<String, Object>> structure = new ArrayList<>();
         List<List<Object>> points = new ArrayList<>();
         String jdbcPrefix = "";
