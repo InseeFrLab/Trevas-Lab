@@ -87,8 +87,8 @@ public class VtlLabController {
                             return sparkEngine.executeSpark(userProvider.getUser(auth), body, type);
                         } catch (Exception e) {
                             e.printStackTrace();
+                            throw new Exception(e.getMessage());
                         }
-                        return null;
                     });
                     break;
                 default:

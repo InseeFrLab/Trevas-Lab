@@ -104,12 +104,13 @@ public class SparkEngine {
         return new SparkDataset(dataset, components);
     }
 
-    private SparkDataset readJDBCDataset(SparkSession spark, QueriesForBindings queriesForBindings, Integer limit) {
+    private SparkDataset readJDBCDataset(SparkSession spark, QueriesForBindings queriesForBindings, Integer limit) throws Exception {
         String jdbcPrefix = "";
         try {
             jdbcPrefix = getJDBCPrefix(queriesForBindings.getDbtype());
         } catch (Exception e) {
             e.printStackTrace();
+            throw new Exception(e);
         }
         Dataset<Row> ds = spark.read().format("jdbc")
                 .option("url", jdbcPrefix + queriesForBindings.getUrl())
@@ -147,13 +148,18 @@ public class SparkEngine {
                     bindings.put(k, sparkDataset);
                 } catch (Exception e) {
                     logger.warn("S3 loading failed: ", e);
+
                 }
             });
         }
 
         ScriptEngine engine = Utils.initEngineWithSpark(bindings, spark);
 
-        engine.eval(script);
+        try {
+            engine.eval(script);
+        } catch (Exception e) {
+            throw new Exception(e);
+        }
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
 
         Map<String, QueriesForBindingsToSave> queriesForBindingsToSave = body.getToSave().getJdbcForBindingsToSave();
