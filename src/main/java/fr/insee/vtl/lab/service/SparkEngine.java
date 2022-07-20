@@ -1,6 +1,5 @@
 package fr.insee.vtl.lab.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.insee.vtl.lab.model.*;
 import fr.insee.vtl.lab.utils.Utils;
@@ -13,19 +12,23 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import javax.script.*;
-import java.io.IOException;
+import javax.script.Bindings;
+import javax.script.ScriptContext;
+import javax.script.ScriptEngine;
+import javax.script.SimpleBindings;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
-import static fr.insee.vtl.lab.utils.Utils.loadSparkConfig;
+import static fr.insee.vtl.lab.utils.Utils.*;
 
 @Service
 @ConfigurationProperties(prefix = "spark")
@@ -33,50 +36,106 @@ public class SparkEngine {
 
     private static final Logger logger = LogManager.getLogger(SparkEngine.class);
 
-    private static final TypeReference<List<Structured.Component>> COMPONENT_TYPE = new TypeReference<>() {
-    };
-
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Value("${spark.cluster.master.local}")
+    private String sparkClusterMasterLocal;
 
-    private SparkDataset readParquetDataset(SparkSession spark, S3ForBindings s3) {
-        String path = s3.getUrl();
-        try {
-            Dataset<Row> dataset = spark.read().parquet(path + "/parquet");
-            byte[] row = spark.read()
-                    .format("binaryFile")
-                    .load(path + "/structure.json")
-                    .first()
-                    .getAs("content");
-            List<Structured.Component> components = objectMapper.readValue(row, COMPONENT_TYPE);
-            Structured.DataStructure structure = new Structured.DataStructure(components);
-            return new SparkDataset(dataset, structure);
-        } catch (IOException e) {
-            throw new RuntimeException("could not read file " + path, e);
+    @Value("${spark.cluster.master.static}")
+    private String sparkClusterMasterStatic;
+
+    @Value("${spark.cluster.master.kubernetes}")
+    private String sparkClusterMasterKubernetes;
+
+    private SparkSession buildSparkSession(ExecutionType type, Boolean addJars) throws Exception {
+        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
+        SparkSession.Builder sparkBuilder = SparkSession.builder()
+                .appName("vtl-lab");
+        if (addJars) {
+            // Note: all the dependencies are required for deserialization.
+            // See https://stackoverflow.com/questions/28079307
+            conf.set("spark.jars", String.join(",",
+                    "/vtl-spark.jar",
+                    "/vtl-model.jar",
+                    "/vtl-parser.jar",
+                    "/vtl-engine.jar",
+                    "/vtl-jackson.jar"
+            ));
         }
+        sparkBuilder.config(conf);
+        if (ExecutionType.LOCAL == type) {
+            sparkBuilder
+                    .master(sparkClusterMasterLocal);
+            return sparkBuilder.getOrCreate();
+        } else if (ExecutionType.CLUSTER_STATIC == type) {
+            sparkBuilder
+                    .master(sparkClusterMasterStatic);
+        } else if (ExecutionType.CLUSTER_KUBERNETES == type) {
+            sparkBuilder
+                    .master(sparkClusterMasterKubernetes);
+            return sparkBuilder.getOrCreate();
+        }
+        throw new Exception("Unknow execution type: " + type);
     }
 
-    private SparkDataset readJDBCDataset(SparkSession spark, QueriesForBindings queriesForBindings) {
-        // Assume we only support Postgre for now
+    private SparkDataset readParquetDataset(SparkSession spark, S3ForBindings s3, Integer limit) throws Exception {
+        String path = s3.getUrl();
+        Dataset<Row> dataset;
+        Dataset<Row> json;
+        try {
+            dataset = spark.read().parquet(path + "/data");
+            json = spark.read()
+                    .option("multiLine", "true")
+                    .json(path + "/structure");
+        } catch (Exception e) {
+            throw new Exception("An error has occured while loading: " + path);
+        }
+        Map<String, fr.insee.vtl.model.Dataset.Role> components = json.collectAsList().stream().map(r -> {
+                            String name = r.getAs("name");
+                            Class type = r.getAs("type").getClass();
+                            fr.insee.vtl.model.Dataset.Role role = fr.insee.vtl.model.Dataset.Role.valueOf(r.getAs("role"));
+                            return new Structured.Component(name, type, role);
+                        }
+                ).collect(Collectors.toList())
+                .stream()
+                .collect(Collectors.toMap(Structured.Component::getName, Structured.Component::getRole));
+        if (limit != null) return new SparkDataset(dataset.limit(limit), components);
+        return new SparkDataset(dataset, components);
+    }
+
+    private SparkDataset readJDBCDataset(SparkSession spark, QueriesForBindings queriesForBindings, Integer limit) throws Exception {
+        String jdbcPrefix = "";
+        try {
+            jdbcPrefix = getJDBCPrefix(queriesForBindings.getDbtype());
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new Exception(e);
+        }
         Dataset<Row> ds = spark.read().format("jdbc")
-                .option("url", "jdbc:" + queriesForBindings.getUrl())
+                .option("url", jdbcPrefix + queriesForBindings.getUrl())
                 .option("user", queriesForBindings.getUser())
                 .option("password", queriesForBindings.getPassword())
                 .option("query", queriesForBindings.getQuery())
-                .option("driver", "org.postgresql.Driver")
                 .load();
+        if (limit != null) return new SparkDataset(ds.limit(limit), Map.of());
         return new SparkDataset(ds, Map.of());
     }
 
-    public Bindings executeSpark(SparkSession spark, Map<String, QueriesForBindings> queriesForBindings,
-                                 Map<String, S3ForBindings> s3ForBindings, String script) throws ScriptException {
-        Bindings updatedBindings = new SimpleBindings();
+    public Bindings executeSpark(User user, Body body, ExecutionType type) throws Exception {
+        String script = body.getVtlScript();
+        Map<String, QueriesForBindings> queriesForBindings = body.getQueriesForBindings();
+        Map<String, S3ForBindings> s3ForBindings = body.getS3ForBindings();
+
+        SparkSession spark = buildSparkSession(type, true);
+
+        Bindings bindings = new SimpleBindings();
+
         if (queriesForBindings != null) {
             queriesForBindings.forEach((k, v) -> {
                 try {
-                    SparkDataset sparkDataset = readJDBCDataset(spark, v);
-                    updatedBindings.put(k, sparkDataset);
+                    SparkDataset sparkDataset = readJDBCDataset(spark, v, null);
+                    bindings.put(k, sparkDataset);
                 } catch (Exception e) {
                     logger.warn("Query loading failed: ", e);
                 }
@@ -85,165 +144,64 @@ public class SparkEngine {
         if (s3ForBindings != null) {
             s3ForBindings.forEach((k, v) -> {
                 try {
-                    SparkDataset sparkDataset = readParquetDataset(spark, v);
-                    updatedBindings.put(k, sparkDataset);
+                    SparkDataset sparkDataset = readParquetDataset(spark, v, null);
+                    bindings.put(k, sparkDataset);
                 } catch (Exception e) {
                     logger.warn("S3 loading failed: ", e);
+
                 }
             });
         }
 
-        ScriptEngine engine = Utils.initEngineWithSpark(updatedBindings, spark);
+        ScriptEngine engine = Utils.initEngineWithSpark(bindings, spark);
 
-        engine.eval(script);
+        try {
+            engine.eval(script);
+        } catch (Exception e) {
+            throw new Exception(e);
+        }
         Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
-        //Utils.writeSparkDatasets(dsBindings, toSave, objectMapper, spark);
-        return Utils.getSparkBindings(outputBindings);
+
+        Map<String, QueriesForBindingsToSave> queriesForBindingsToSave = body.getToSave().getJdbcForBindingsToSave();
+        if (null != queriesForBindingsToSave) {
+            writeSparkDatasetsJDBC(outputBindings, queriesForBindingsToSave, objectMapper, spark);
+        }
+
+        Map<String, S3ForBindings> s3ToSave = body.getToSave().getS3ForBindings();
+        if (null != s3ToSave) {
+            writeSparkS3Datasets(outputBindings, s3ToSave, objectMapper, spark);
+        }
+
+        return Utils.getSparkBindings(outputBindings, 1000);
     }
-
-    public Bindings executeLocalSpark(User user, Body body) throws ScriptException {
-        String script = body.getVtlScript();
-        Map<String, QueriesForBindings> queriesForBindings = body.getQueriesForBindings();
-        Map<String, S3ForBindings> s3ForBindings = body.getS3ForBindings();
-
-        SparkSession.Builder sparkBuilder = SparkSession.builder()
-                .appName("vtl-lab")
-                .master("local");
-
-        SparkSession spark = sparkBuilder.getOrCreate();
-        return executeSpark(spark, queriesForBindings, s3ForBindings, script);
-    }
-
-    public Bindings executeSparkStatic(User user, Body body) throws ScriptException {
-        String script = body.getVtlScript();
-        Map<String, QueriesForBindings> queriesForBindings = body.getQueriesForBindings();
-        Map<String, S3ForBindings> s3ForBindings = body.getS3ForBindings();
-
-        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
-
-        SparkSession.Builder sparkBuilder = SparkSession.builder()
-                .config(conf)
-                .master("local");
-
-        // Note: all the dependencies are required for deserialization.
-        // See https://stackoverflow.com/questions/28079307
-        sparkBuilder.config("spark.jars", String.join(",",
-                "/vtl-spark.jar",
-                "/vtl-model.jar",
-                "/vtl-jackson.jar",
-                "/vtl-parser.jar",
-                "/vtl-engine.jar"
-        ));
-
-        SparkSession spark = sparkBuilder.getOrCreate();
-        return executeSpark(spark, queriesForBindings, s3ForBindings, script);
-    }
-
-    public Bindings executeSparkKube(User user, Body body) throws ScriptException {
-        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
-        SparkSession.Builder sparkBuilder = SparkSession.builder()
-                .config(conf)
-                .master("k8s://https://kubernetes.default.svc.cluster.local:443");
-
-        sparkBuilder.config("spark.jars", "org.postgresql:postgresql:42.3.3");
-
-        // Note: all the dependencies are required for deserialization.
-        // See https://stackoverflow.com/questions/28079307
-        sparkBuilder.config("spark.jars", String.join(",",
-                "/vtl-spark.jar",
-                "/vtl-model.jar",
-                "/vtl-jackson.jar",
-                "/vtl-parser.jar",
-                "/vtl-engine.jar"
-        ));
-
-        String script = body.getVtlScript();
-        Map<String, QueriesForBindings> queriesForBindings = body.getQueriesForBindings();
-        Map<String, S3ForBindings> s3ForBindings = body.getS3ForBindings();
-        SparkSession spark = sparkBuilder.getOrCreate();
-        return executeSpark(spark, queriesForBindings, s3ForBindings, script);
-    }
-
-//    public String buildParquet(User user, ParquetPaths parquetPaths) {
-//
-//        String structure = parquetPaths.getStructure();
-//        String data = parquetPaths.getData();
-//        String target = parquetPaths.getTarget();
-//
-//        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
-//
-//        SparkSession.Builder sparkBuilder = SparkSession.builder()
-//                .config(conf)
-//                .master("k8s://https://kubernetes.default.svc.cluster.local:443");
-//
-//        // Note: all the dependencies are required for deserialization.
-//        // See https://stackoverflow.com/questions/28079307
-//        sparkBuilder.config("spark.jars", String.join(",",
-//                "/vtl-spark.jar",
-//                "/vtl-model.jar",
-//                "/vtl-jackson.jar",
-//                "/vtl-parser.jar",
-//                "/vtl-engine.jar"
-//        ));
-//
-//        SparkSession spark = sparkBuilder.getOrCreate();
-//
-//        TypeReference<List<Structured.Component>> COMPONENT_TYPE = new TypeReference<>() {
-//        };
-//
-//        byte[] row = spark.read()
-//                .format("binaryFile")
-//                .load(structure)
-//                .first()
-//                .getAs("content");
-//
-//        List<Structured.Component> components = null;
-//        try {
-//            components = objectMapper.readValue(row, COMPONENT_TYPE);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//            return "ko";
-//        }
-//        Structured.DataStructure dsStructure = new Structured.DataStructure(components);
-//
-//        StructType structType = SparkDataset.toSparkSchema(dsStructure);
-//
-//        Dataset<Row> dataset = spark.read()
-//                .options(Map.of("header", "true", "delimiter", ";"))
-//                .schema(structType)
-//                .csv(data);
-//        dataset.write().mode(SaveMode.Overwrite).parquet(target);
-//        return "ok";
-//    }
 
     public ResponseEntity<EditVisualize> getJDBC(
             User user,
-            QueriesForBindings queriesForBindings) {
-        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
-        SparkSession.Builder sparkBuilder = SparkSession.builder()
-                .config(conf)
-                .master("k8s://https://kubernetes.default.svc.cluster.local:443");
-        sparkBuilder.config("spark.jars", "org.postgresql:postgresql:42.3.3");
-        SparkSession spark = sparkBuilder.getOrCreate();
-        Dataset<Row> ds = spark.read().format("jdbc")
-                .option("url", "jdbc:" + queriesForBindings.getUrl())
-                .option("user", queriesForBindings.getUser())
-                .option("password", queriesForBindings.getPassword())
-                .option("query", queriesForBindings.getQuery())
-                .option("driver", "org.postgresql.Driver")
-                .load()
-                .limit(1000);
+            QueriesForBindings queriesForBindings,
+            ExecutionType type) throws Exception {
 
-        fr.insee.vtl.model.Dataset trevasDs = new SparkDataset(ds, Map.of());
+        SparkSession spark = buildSparkSession(type, false);
+
+        fr.insee.vtl.model.Dataset trevasDs = readJDBCDataset(spark, queriesForBindings, 1000);
 
         EditVisualize editVisualize = new EditVisualize();
 
         List<Map<String, Object>> structure = new ArrayList<>();
+
+        String roleUrl = queriesForBindings.getRoleUrl();
+        Map<String, fr.insee.vtl.model.Dataset.Role> roles =
+                roleUrl != null && !roleUrl.equals("") ? getRoles(roleUrl, spark) : Map.of();
+
         trevasDs.getDataStructure().entrySet().forEach(e -> {
             Structured.Component component = e.getValue();
             Map<String, Object> row = new HashMap<>();
             row.put("name", component.getName());
-            row.put("type", component.getType());
+            row.put("type", component.getType().getSimpleName());
+            // Default has to be handled by Trevas
+            row.put("role", "MEASURE");
+            if (null != roles && null != roles.get(component.getName())) {
+                row.put("role", roles.get(component.getName()));
+            }
             structure.add(row);
         });
         editVisualize.setDataStructure(structure);
@@ -256,41 +214,56 @@ public class SparkEngine {
 
     public ResponseEntity<EditVisualize> getS3(
             User user,
-            S3ForBindings s3ForBindings) {
-        SparkConf conf = loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
-        SparkSession.Builder sparkBuilder = SparkSession.builder()
-                .config(conf)
-                .master("k8s://https://kubernetes.default.svc.cluster.local:443");
-        SparkSession spark = sparkBuilder.getOrCreate();
+            S3ForBindings s3ForBindings,
+            ExecutionType type) throws Exception {
+
+        SparkSession spark = buildSparkSession(type, false);
 
         EditVisualize editVisualize = new EditVisualize();
 
-        String path = s3ForBindings.getUrl();
-        try {
-            Dataset<Row> dataset = spark.read().parquet(path + "/parquet");
-            byte[] row = spark.read()
-                    .format("binaryFile")
-                    .load(path + "/structure.json")
-                    .first()
-                    .getAs("content");
-            List<Structured.Component> components = objectMapper.readValue(row, COMPONENT_TYPE);
-            Structured.DataStructure builtStructure = new Structured.DataStructure(components);
-            fr.insee.vtl.model.Dataset trevasDs = new SparkDataset(dataset, builtStructure);
+        fr.insee.vtl.model.Dataset trevasDs = readParquetDataset(spark, s3ForBindings, 1000);
 
-            List<Map<String, Object>> structure = new ArrayList<>();
-            trevasDs.getDataStructure().entrySet().forEach(e -> {
-                Structured.Component component = e.getValue();
-                Map<String, Object> rowMap = new HashMap<>();
-                rowMap.put("name", component.getName());
-                rowMap.put("type", component.getType());
-                structure.add(rowMap);
-            });
-            editVisualize.setDataStructure(structure);
-            editVisualize.setDataPoints(trevasDs.getDataAsList());
-        } catch (IOException e) {
-            throw new RuntimeException("could not read file " + path, e);
-        }
+        Map<String, fr.insee.vtl.model.Dataset.Role> roles = getRoles(s3ForBindings.getUrl() + "/structure", spark);
+
+        List<Map<String, Object>> structure = new ArrayList<>();
+        trevasDs.getDataStructure().entrySet().forEach(e -> {
+            Structured.Component component = e.getValue();
+            Map<String, Object> rowMap = new HashMap<>();
+            rowMap.put("name", component.getName());
+            rowMap.put("type", component.getType().getSimpleName());
+            // Default has to be handled by Trevas
+            rowMap.put("role", "MEASURE");
+            if (null != roles && null != roles.get(component.getName())) {
+                rowMap.put("role", roles.get(component.getName()));
+            }
+            structure.add(rowMap);
+        });
+        editVisualize.setDataStructure(structure);
+        editVisualize.setDataPoints(trevasDs.getDataAsList());
         return ResponseEntity.status(HttpStatus.OK)
                 .body(editVisualize);
+    }
+
+    public Map<String, fr.insee.vtl.model.Dataset.Role> getRoles(String path, SparkSession spark) throws Exception {
+        if (null == path || path.equals("")) return Map.of();
+        Dataset<Row> json;
+        try {
+            json = spark.read()
+                    .option("multiLine", "true")
+                    .json(path);
+        } catch (Exception e) {
+            throw new Exception("An error has occured while loading: " + path);
+        }
+        Map<String, fr.insee.vtl.model.Dataset.Role> roles =
+                json.collectAsList().stream()
+                        .map(r -> {
+                                    String name = r.getAs("name");
+                                    fr.insee.vtl.model.Dataset.Role role = fr.insee.vtl.model.Dataset.Role.valueOf(r.getAs("role"));
+                                    return new Role(name, role);
+                                }
+                        ).collect(Collectors.toList())
+                        .stream()
+                        .collect(Collectors.toMap(Role::getName, Role::getRole));
+        return roles;
     }
 }

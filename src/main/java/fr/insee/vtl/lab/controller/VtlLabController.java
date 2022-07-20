@@ -5,7 +5,6 @@ import fr.insee.vtl.lab.configuration.security.UserProvider;
 import fr.insee.vtl.lab.model.*;
 import fr.insee.vtl.lab.service.InMemoryEngine;
 import fr.insee.vtl.lab.service.SparkEngine;
-import fr.insee.vtl.spark.SparkDataset;
 import org.apache.spark.sql.SparkSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -15,15 +14,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import javax.script.Bindings;
-import javax.script.ScriptException;
-import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import static fr.insee.vtl.lab.utils.Utils.writeSparkDataset;
 
 @RestController
 @RequestMapping("/api/vtl")
@@ -44,34 +39,25 @@ public class VtlLabController {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @PostMapping("/in-memory")
-    public Bindings executeInMemory(Authentication auth, @RequestBody Body body) throws SQLException {
-        return inMemoryEngine.executeInMemory(userProvider.getUser(auth), body);
-    }
-
-//    @PostMapping("/build-parquet")
-//    public String buildParquet(Authentication auth, @RequestBody ParquetPaths parquetPaths) {
-//        return sparkEngine.buildParquet(userProvider.getUser(auth), parquetPaths);
-//    }
-
-    @PostMapping("/jdbc")
-    public ResponseEntity<EditVisualize> getJDBC(
+    @PostMapping("/connect")
+    public ResponseEntity<EditVisualize> getDataFromConnector(
             Authentication auth,
-            @RequestBody QueriesForBindings queriesForBindings,
-            @RequestParam("mode") ExecutionMode mode)
-            throws SQLException {
+            @RequestBody Body body,
+            @RequestParam("mode") ExecutionMode mode,
+            @RequestParam("connectorType") ConnectorType connectorType,
+            @RequestParam("type") ExecutionType type
+    ) throws Exception {
         if (mode == ExecutionMode.MEMORY) {
-            return inMemoryEngine.getJDBC(userProvider.getUser(auth), queriesForBindings);
-        } else {
-            return sparkEngine.getJDBC(userProvider.getUser(auth), queriesForBindings);
-        }
-    }
-
-    @PostMapping("/S3")
-    public ResponseEntity<EditVisualize> getJDBC(
-            Authentication auth,
-            @RequestBody S3ForBindings s3ForBindings) {
-        return sparkEngine.getS3(userProvider.getUser(auth), s3ForBindings);
+            if (connectorType == ConnectorType.JDBC)
+                return inMemoryEngine.getJDBC(userProvider.getUser(auth), body.getQueriesForBindings().get("config"));
+            else throw new Exception("Unknow connector type: " + mode);
+        } else if (mode == ExecutionMode.SPARK) {
+            if (connectorType == ConnectorType.JDBC)
+                return sparkEngine.getJDBC(userProvider.getUser(auth), body.getQueriesForBindings().get("config"), type);
+            else if (connectorType == ConnectorType.S3)
+                return sparkEngine.getS3(userProvider.getUser(auth), body.getS3ForBindings().get("config"), type);
+            else throw new Exception("Unknow connector type: " + mode);
+        } else throw new Exception("Unknow mode: " + mode);
     }
 
     @PostMapping("/execute")
@@ -80,30 +66,30 @@ public class VtlLabController {
             @RequestBody Body body,
             @RequestParam("mode") ExecutionMode mode,
             @RequestParam("type") ExecutionType type
-    ) {
+    ) throws Exception {
         Job job;
         if (mode == ExecutionMode.MEMORY) {
             job = executeJob(body, () -> {
                 try {
                     return inMemoryEngine.executeInMemory(userProvider.getUser(auth), body);
-                } catch (SQLException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
-                    throw new ResponseStatusException(
-                            HttpStatus.INTERNAL_SERVER_ERROR,
-                            "SQLException error: " + type
-                    );
+                    throw new Exception(e.getMessage());
                 }
             });
-        } else {
+        } else if (mode == ExecutionMode.SPARK) {
             switch (type) {
                 case LOCAL:
-                    job = executeJob(body, () -> sparkEngine.executeLocalSpark(userProvider.getUser(auth), body));
-                    break;
                 case CLUSTER_STATIC:
-                    job = executeJob(body, () -> sparkEngine.executeSparkStatic(userProvider.getUser(auth), body));
-                    break;
                 case CLUSTER_KUBERNETES:
-                    job = executeJob(body, () -> sparkEngine.executeSparkKube(userProvider.getUser(auth), body));
+                    job = executeJob(body, () -> {
+                        try {
+                            return sparkEngine.executeSpark(userProvider.getUser(auth), body, type);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            throw new Exception(e.getMessage());
+                        }
+                    });
                     break;
                 default:
                     throw new ResponseStatusException(
@@ -111,7 +97,7 @@ public class VtlLabController {
                             "Unsupported execution type: " + type
                     );
             }
-        }
+        } else throw new Exception("Unknow mode:" + mode);
         jobs.put(job.id, job);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .header("Location", "/api/vtl/job/" + job.id)
@@ -142,10 +128,21 @@ public class VtlLabController {
         executorService.submit(() -> {
             try {
                 job.definition = body;
-                for (String name : body.getToSave().keySet()) {
-                    var output = new Output();
-                    output.location = (String) body.getToSave().get(name);
-                    job.outputs.put(name, output);
+                Map<String, S3ForBindings> s3ToSave = body.getToSave().getS3ForBindings();
+                if (s3ToSave != null) {
+                    s3ToSave.forEach((k, v) -> {
+                        var output = new Output();
+                        output.location = k;
+                        job.outputs.put(k, output);
+                    });
+                }
+                Map<String, QueriesForBindingsToSave> jdbcToSave = body.getToSave().getJdbcForBindingsToSave();
+                if (jdbcToSave != null) {
+                    jdbcToSave.forEach((k, v) -> {
+                        var output = new Output();
+                        output.location = k;
+                        job.outputs.put(k, output);
+                    });
                 }
                 job.status = Status.RUNNING;
                 job.bindings = execution.execute();
@@ -157,7 +154,7 @@ public class VtlLabController {
                                 .appName("vtl-lab")
                                 .master("local");
                         SparkSession spark = sparkBuilder.getOrCreate();
-                        writeSparkDataset(objectMapper, spark, output.location, (SparkDataset) job.bindings.get(variableName));
+//                        writeSparkDataset(objectMapper, spark, output.location, (SparkDataset) job.bindings.get(variableName));
                         output.status = Status.DONE;
                     } catch (Exception ex) {
                         job.status = Status.FAILED;
@@ -174,20 +171,9 @@ public class VtlLabController {
         return job;
     }
 
-    public enum ExecutionMode {
-        MEMORY,
-        SPARK
-    }
-
-    public enum ExecutionType {
-        LOCAL,
-        CLUSTER_STATIC,
-        CLUSTER_KUBERNETES
-    }
-
     @FunctionalInterface
     interface VtlJob {
-        Bindings execute() throws ScriptException;
+        Bindings execute() throws Exception;
     }
 
 }

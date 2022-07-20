@@ -1,13 +1,16 @@
 package fr.insee.vtl.lab.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.insee.vtl.jdbc.JDBCDataset;
 import fr.insee.vtl.lab.model.Body;
 import fr.insee.vtl.lab.model.EditVisualize;
 import fr.insee.vtl.lab.model.QueriesForBindings;
 import fr.insee.vtl.lab.model.User;
 import fr.insee.vtl.lab.utils.Utils;
+import fr.insee.vtl.model.Dataset;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -21,34 +24,41 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static fr.insee.vtl.lab.utils.Utils.getJDBCPrefix;
+import static fr.insee.vtl.lab.utils.Utils.getRoles;
+
 @Service
 public class InMemoryEngine {
 
     private static final Logger logger = LogManager.getLogger(InMemoryEngine.class);
 
-    public Bindings executeInMemory(User user, Body body) throws SQLException {
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    public Bindings executeInMemory(User user, Body body) throws Exception {
         String script = body.getVtlScript();
         Bindings bindings = body.getBindings();
         Map<String, QueriesForBindings> queriesForBindings = body.getQueriesForBindings();
 
         if (queriesForBindings != null) {
             queriesForBindings.forEach((k, v) -> {
-                Connection connection;
-                Statement statement = null;
+                String jdbcPrefix = "";
                 try {
-                    Class.forName("org.postgresql.Driver");
-                    connection = DriverManager.getConnection(
-                            "jdbc:" + v.getUrl(),
-                            v.getUser(),
-                            v.getPassword());
-                    statement = connection.createStatement();
-                } catch (SQLException | ClassNotFoundException e) {
+                    jdbcPrefix = getJDBCPrefix(v.getDbtype());
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
-                Statement finalStatement = statement;
+                String finalJdbcPrefix = jdbcPrefix;
+                // TODO: Support Roles when Trevas will be able to
                 JDBCDataset jdbcDataset = new JDBCDataset(() -> {
-                    try {
-                        return finalStatement.executeQuery(v.getQuery());
+                    try (
+                            Connection connection = DriverManager.getConnection(
+                                    finalJdbcPrefix + v.getUrl(),
+                                    v.getUser(),
+                                    v.getPassword())
+                    ) {
+                        Statement statement = connection.createStatement();
+                        return statement.executeQuery(v.getQuery());
                     } catch (SQLException se) {
                         throw new RuntimeException(se);
                     }
@@ -66,66 +76,72 @@ public class InMemoryEngine {
             return output;
         } catch (Exception e) {
             logger.warn("Eval failed: ", e);
+            throw new Exception(e);
         }
-        return bindings;
     }
 
     public ResponseEntity<EditVisualize> getJDBC(
             User user,
-            QueriesForBindings queriesForBindings)
-            throws SQLException {
-        Connection connection;
-        Statement statement = null;
-        try {
-            Class.forName("org.postgresql.Driver");
-            connection = DriverManager.getConnection(
-                    "jdbc:" + queriesForBindings.getUrl(),
-                    queriesForBindings.getUser(),
-                    queriesForBindings.getPassword());
-            statement = connection.createStatement();
-        } catch (SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-        ResultSet resultSet = null;
-        try {
-            resultSet = statement.executeQuery(queriesForBindings.getQuery());
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        // Structure
+            QueriesForBindings queriesForBindings) throws SQLException {
+        String roleUrl = queriesForBindings.getRoleUrl();
+        Map<String, Dataset.Role> roles =
+                roleUrl != null && !roleUrl.equals("") ? getRoles(roleUrl, objectMapper) : Map.of();
         List<Map<String, Object>> structure = new ArrayList<>();
-        ResultSetMetaData rsmd = resultSet.getMetaData();
-        int columnCount = rsmd.getColumnCount();
-
-        for (int i = 1; i <= columnCount; i++) {
-            Map<String, Object> row = new HashMap<>();
-            String colName = rsmd.getColumnName(i);
-            row.put("name", colName);
-            String colType = JDBCType.valueOf(rsmd.getColumnType(i)).getName();
-            row.put("type", colType);
-            structure.add(row);
-        }
-
-        // Data
         List<List<Object>> points = new ArrayList<>();
-        while (resultSet.next()) {
-            List<Object> row = new ArrayList<>();
-            for (int i = 1; i <= columnCount; i++) {
-                Object colVal = resultSet.getObject(i);
-                row.add(colVal);
+        String jdbcPrefix = "";
+        try {
+            jdbcPrefix = getJDBCPrefix(queriesForBindings.getDbtype());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        try (
+                Connection connection = DriverManager.getConnection(
+                        jdbcPrefix + queriesForBindings.getUrl(),
+                        queriesForBindings.getUser(),
+                        queriesForBindings.getPassword())
+        ) {
+            try (
+                    Statement statement = connection.createStatement();
+                    ResultSet resultSet = statement.executeQuery(queriesForBindings.getQuery())
+            ) {
+                // Structure
+                ResultSetMetaData rsmd = resultSet.getMetaData();
+                int columnCount = rsmd.getColumnCount();
+
+                for (int i = 1; i <= columnCount; i++) {
+                    Map<String, Object> row = new HashMap<>();
+                    String colName = rsmd.getColumnName(i);
+                    row.put("name", colName);
+                    String colType = JDBCType.valueOf(rsmd.getColumnType(i)).getName();
+                    row.put("type", colType);
+                    // Default has to be handled by Trevas
+                    row.put("role", "MEASURE");
+                    if (null != roles && null != roles.get(colName)) {
+                        row.put("role", roles.get(colName));
+                    }
+                    structure.add(row);
+                }
+
+                // Data
+                while (resultSet.next()) {
+                    List<Object> row = new ArrayList<>();
+                    for (int i = 1; i <= columnCount; i++) {
+                        Object colVal = resultSet.getObject(i);
+                        row.add(colVal);
+                    }
+                    points.add(row);
+                }
+            } catch (SQLException e) {
+                throw new SQLException("JDBC connection error");
             }
-            points.add(row);
+        } catch (SQLException e) {
+            throw new SQLException("JDBC connection error");
         }
 
         EditVisualize editVisualize = new EditVisualize();
         editVisualize.setDataStructure(structure);
         editVisualize.setDataPoints(points);
 
-        try {
-            resultSet.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
         return ResponseEntity.status(HttpStatus.OK)
                 .body(editVisualize);
     }

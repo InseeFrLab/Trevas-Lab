@@ -1,11 +1,11 @@
 package fr.insee.vtl.lab.model;
 
-public class QueriesForBindings {
+public class QueriesForBindingsToSave {
 
     private String url;
     private String user;
     private String password;
-    private String query;
+    private String table;
     private String dbtype;
     private String roleUrl;
 
@@ -33,14 +33,6 @@ public class QueriesForBindings {
         this.password = password;
     }
 
-    public String getQuery() {
-        return query;
-    }
-
-    public void setQuery(String query) {
-        this.query = query;
-    }
-
     public String getDbtype() {
         return dbtype;
     }
@@ -55,5 +47,13 @@ public class QueriesForBindings {
 
     public void setRoleUrl(String roleUrl) {
         this.roleUrl = roleUrl;
+    }
+
+    public String getTable() {
+        return table;
+    }
+
+    public void setTable(String table) {
+        this.table = table;
     }
 }

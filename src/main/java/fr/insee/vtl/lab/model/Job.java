@@ -16,4 +16,8 @@ public class Job {
 
     @JsonIgnore
     public Bindings bindings;
+
+
+    public Job() {
+    }
 }
