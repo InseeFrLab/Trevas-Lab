@@ -78,6 +78,9 @@ public class Utils {
                     if (normalizedName.contains("maxexecutors")) {
                         normalizedName = normalizedName.replace("maxexecutors", "maxExecutors");
                     }
+                    if (normalizedName.contains("extrajavaoptions")) {
+                        normalizedName = normalizedName.replace("extrajavaoptions", "extraJavaOptions");
+                    }
                     conf.set(normalizedName, entry.getValue());
                 }
             }
