@@ -117,6 +117,8 @@ public class SparkEngine {
                 .option("user", queriesForBindings.getUser())
                 .option("password", queriesForBindings.getPassword())
                 .option("query", queriesForBindings.getQuery())
+                .option("driver", "net.postgis.jdbc.DriverWrapper")
+                .option("driver", "net.postgis.jdbc.DriverWrapperAutoprobe")
                 .load();
         if (limit != null) return new SparkDataset(ds.limit(limit), Map.of());
         return new SparkDataset(ds, Map.of());
