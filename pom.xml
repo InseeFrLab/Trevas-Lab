@@ -23,7 +23,7 @@
 
     <properties>
         <java.version>11</java.version>
-        <trevas.version>0.4.2</trevas.version>
+        <trevas.version>0.4.3</trevas.version>
     </properties>
 
     <dependencyManagement>
