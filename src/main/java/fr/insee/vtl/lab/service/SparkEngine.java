@@ -79,12 +79,19 @@ public class SparkEngine {
         throw new Exception("Unknow execution type: " + type);
     }
 
-    private SparkDataset readParquetDataset(SparkSession spark, S3ForBindings s3, Integer limit) throws Exception {
+    private SparkDataset readS3Dataset(SparkSession spark, S3ForBindings s3, Integer limit) throws Exception {
         String path = s3.getUrl();
+        String fileType = s3.getFiletype();
         Dataset<Row> dataset;
         Dataset<Row> json;
         try {
-            dataset = spark.read().parquet(path + "/data");
+            if ("csv".equals(fileType))
+                dataset = spark.read()
+                        .option("delimiter", ";")
+                        .option("header", "true")
+                        .csv(path + "/data");
+            else if ("parquet".equals(fileType)) dataset = spark.read().parquet(path + "/data");
+            else throw new Exception("Unknow S3 file type: " + fileType);
             json = spark.read()
                     .option("multiLine", "true")
                     .json(path + "/structure");
@@ -146,7 +153,7 @@ public class SparkEngine {
         if (s3ForBindings != null) {
             s3ForBindings.forEach((k, v) -> {
                 try {
-                    SparkDataset sparkDataset = readParquetDataset(spark, v, null);
+                    SparkDataset sparkDataset = readS3Dataset(spark, v, null);
                     bindings.put(k, sparkDataset);
                 } catch (Exception e) {
                     logger.warn("S3 loading failed: ", e);
@@ -223,7 +230,7 @@ public class SparkEngine {
 
         EditVisualize editVisualize = new EditVisualize();
 
-        fr.insee.vtl.model.Dataset trevasDs = readParquetDataset(spark, s3ForBindings, 1000);
+        fr.insee.vtl.model.Dataset trevasDs = readS3Dataset(spark, s3ForBindings, 1000);
 
         Map<String, fr.insee.vtl.model.Dataset.Role> roles = getRoles(s3ForBindings.getUrl() + "/structure", spark);
 

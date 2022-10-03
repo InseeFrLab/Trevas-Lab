@@ -148,13 +148,30 @@ public class Utils {
                                             SparkSession spark) {
         s3toSave.forEach((name, values) -> {
             SparkDataset dataset = (SparkDataset) bindings.get(name);
-            writeSparkDataset(objectMapper, spark, values.getUrl(), dataset);
+            try {
+                writeSparkDataset(objectMapper, spark, values, dataset);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         });
     }
 
-    public static void writeSparkDataset(ObjectMapper objectMapper, SparkSession spark, String location, SparkDataset dataset) {
+    public static void writeSparkDataset(ObjectMapper objectMapper, SparkSession spark, S3ForBindings s3, SparkDataset dataset) throws Exception {
         Dataset<Row> sparkDataset = dataset.getSparkDataset();
-        sparkDataset.write().mode(SaveMode.Overwrite).parquet(location + "/data");
+        String path = s3.getUrl();
+        String fileType = s3.getFiletype();
+        if ("csv".equals(fileType))
+            sparkDataset.write()
+                    .mode(SaveMode.Overwrite)
+                    .option("delimiter", ";")
+                    .option("header", "true")
+                    .csv(path + "/data");
+        else if ("parquet".equals(fileType))
+            sparkDataset.write()
+                    .mode(SaveMode.Overwrite)
+                    .parquet(path + "/data");
+        else throw new Exception("Unknow S3 file type: " + fileType);
+
         // Trick to write json thanks to spark
         String json = "";
         try {
@@ -165,7 +182,7 @@ public class Utils {
         JavaSparkContext.fromSparkContext(spark.sparkContext())
                 .parallelize(List.of(json))
                 .coalesce(1)
-                .saveAsTextFile(location + "/structure");
+                .saveAsTextFile(path + "/structure");
     }
 
     public static String getJDBCPrefix(String dbType) throws Exception {
