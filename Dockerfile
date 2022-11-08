@@ -13,4 +13,4 @@ COPY target/lib/postgis-jdbc-*.jar /postgis-jdbc.jar
 
 COPY target/trevas-lab*.jar.original /lib/trevas-lab.jar
 
-ENTRYPOINT ["java", "-cp", "/lib/*", "TrevasLabApplication"]
+ENTRYPOINT ["java", "-cp", "/lib/*", "fr.insee.trevas.lab.TrevasLabApplication"]
