@@ -3,7 +3,6 @@ package fr.insee.trevas.lab.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.insee.trevas.lab.model.*;
 import fr.insee.trevas.lab.utils.Utils;
-import fr.insee.vtl.lab.model.*;
 import fr.insee.vtl.model.Structured;
 import fr.insee.vtl.spark.SparkDataset;
 import org.apache.logging.log4j.LogManager;

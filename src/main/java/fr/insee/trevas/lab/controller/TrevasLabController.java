@@ -1,11 +1,10 @@
 package fr.insee.trevas.lab.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import fr.insee.trevas.lab.model.*;
-import fr.insee.trevas.lab.service.SparkEngine;
 import fr.insee.trevas.lab.configuration.security.UserProvider;
-import fr.insee.vtl.lab.model.*;
+import fr.insee.trevas.lab.model.*;
 import fr.insee.trevas.lab.service.InMemoryEngine;
+import fr.insee.trevas.lab.service.SparkEngine;
 import org.apache.spark.sql.SparkSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -23,7 +22,7 @@ import java.util.concurrent.Executors;
 
 @RestController
 @RequestMapping("/api/vtl")
-public class VtlLabController {
+public class TrevasLabController {
 
     private final ExecutorService executorService = Executors.newCachedThreadPool();
     private final Map<UUID, Job> jobs = new HashMap<>();
