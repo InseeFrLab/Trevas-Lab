@@ -13,4 +13,4 @@ COPY target/lib/postgis-jdbc-*.jar /postgis-jdbc.jar
 
 COPY target/vtl-lab*.jar.original /lib/vtl-lab.jar
 
-ENTRYPOINT ["java", "-cp", "/lib/*", "fr.insee.vtl.lab.VtlLabApplication"]
+ENTRYPOINT ["java", "-cp", "/lib/*", "VtlLabApplication"]

@@ -9,9 +9,9 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>fr.insee</groupId>
-    <artifactId>vtl-lab</artifactId>
+    <artifactId>trevas.lab</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>vtl-lab</name>
+    <name>Trevas Lab</name>
     <description>VTL API calling Trevas</description>
 
     <licenses>

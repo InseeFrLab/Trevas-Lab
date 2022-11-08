@@ -1,4 +1,4 @@
-name: VTL Lab CI
+name: Trevas Lab CI
 
 on:
   #schedule:
@@ -28,7 +28,7 @@ jobs:
         id: docker_meta
         uses: crazy-max/ghaction-docker-meta@v1.8.4
         with:
-          images: inseefrlab/vtl-lab # list of Docker images to use as base name for tags
+          images: inseefrlab/trevas-lab # list of Docker images to use as base name for tags
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx
@@ -47,7 +47,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ steps.docker_meta.outputs.tags }}
-            ${{ github.ref == 'refs/heads/master' && 'inseefrlab/vtl-lab:latest' || '' }}
+            ${{ github.ref == 'refs/heads/master' && 'inseefrlab/trevas-lab:latest' || '' }}
           labels: ${{ steps.docker_meta.outputs.labels }}
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
