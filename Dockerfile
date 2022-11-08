@@ -11,6 +11,6 @@ COPY target/lib/vtl-parser-*.jar /vtl-parser.jar
 COPY target/lib/postgresql-*.jar /postgresql.jar
 COPY target/lib/postgis-jdbc-*.jar /postgis-jdbc.jar
 
-COPY target/vtl-lab*.jar.original /lib/vtl-lab.jar
+COPY target/trevas-lab*.jar.original /lib/trevas-lab.jar
 
-ENTRYPOINT ["java", "-cp", "/lib/*", "VtlLabApplication"]
+ENTRYPOINT ["java", "-cp", "/lib/*", "TrevasLabApplication"]
