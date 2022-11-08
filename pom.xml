@@ -9,7 +9,7 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>fr.insee</groupId>
-    <artifactId>trevas.lab</artifactId>
+    <artifactId>trevas-lab</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>Trevas Lab</name>
     <description>VTL API calling Trevas</description>
