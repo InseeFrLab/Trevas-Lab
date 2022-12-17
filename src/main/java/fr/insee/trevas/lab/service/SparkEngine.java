@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @ConfigurationProperties(prefix = "spark")
@@ -81,7 +80,6 @@ public class SparkEngine {
         String path = s3.getUrl();
         String fileType = s3.getFiletype();
         Dataset<Row> dataset;
-        Dataset<Row> json;
         try {
             if ("csv".equals(fileType))
                 dataset = spark.read()
@@ -90,23 +88,10 @@ public class SparkEngine {
                         .csv(path + "/data");
             else if ("parquet".equals(fileType)) dataset = spark.read().parquet(path + "/data");
             else throw new Exception("Unknow S3 file type: " + fileType);
-            json = spark.read()
-                    .option("multiLine", "true")
-                    .json(path + "/structure");
         } catch (Exception e) {
             throw new Exception("An error has occured while loading: " + path);
         }
-        Map<String, fr.insee.vtl.model.Dataset.Role> components = json.collectAsList().stream().map(r -> {
-                            String name = r.getAs("name");
-                            Class type = r.getAs("type").getClass();
-                            fr.insee.vtl.model.Dataset.Role role = fr.insee.vtl.model.Dataset.Role.valueOf(r.getAs("role"));
-                            return new Structured.Component(name, type, role);
-                        }
-                ).collect(Collectors.toList())
-                .stream()
-                .collect(Collectors.toMap(Structured.Component::getName, Structured.Component::getRole));
-        if (limit != null) return new SparkDataset(dataset.limit(limit), components);
-        return new SparkDataset(dataset, components);
+        return new SparkDataset(dataset, Map.of());
     }
 
     private SparkDataset readJDBCDataset(SparkSession spark, QueriesForBindings queriesForBindings, Integer limit) throws Exception {
@@ -223,8 +208,6 @@ public class SparkEngine {
 
         fr.insee.vtl.model.Dataset trevasDs = readS3Dataset(spark, s3ForBindings, 1000);
 
-        Map<String, fr.insee.vtl.model.Dataset.Role> roles = getRoles(s3ForBindings.getUrl() + "/structure", spark);
-
         List<Map<String, Object>> structure = new ArrayList<>();
         trevasDs.getDataStructure().entrySet().forEach(e -> {
             Structured.Component component = e.getValue();
@@ -233,9 +216,6 @@ public class SparkEngine {
             rowMap.put("type", component.getType().getSimpleName());
             // Default has to be handled by Trevas
             rowMap.put("role", "MEASURE");
-            if (null != roles && null != roles.get(component.getName())) {
-                rowMap.put("role", roles.get(component.getName()));
-            }
             structure.add(rowMap);
         });
         editVisualize.setDataStructure(structure);
@@ -244,26 +224,4 @@ public class SparkEngine {
                 .body(editVisualize);
     }
 
-    public Map<String, fr.insee.vtl.model.Dataset.Role> getRoles(String path, SparkSession spark) throws Exception {
-        if (null == path || path.equals("")) return Map.of();
-        Dataset<Row> json;
-        try {
-            json = spark.read()
-                    .option("multiLine", "true")
-                    .json(path);
-        } catch (Exception e) {
-            throw new Exception("An error has occured while loading: " + path);
-        }
-        Map<String, fr.insee.vtl.model.Dataset.Role> roles =
-                json.collectAsList().stream()
-                        .map(r -> {
-                                    String name = r.getAs("name");
-                                    fr.insee.vtl.model.Dataset.Role role = fr.insee.vtl.model.Dataset.Role.valueOf(r.getAs("role"));
-                                    return new Role(name, role);
-                                }
-                        ).collect(Collectors.toList())
-                        .stream()
-                        .collect(Collectors.toMap(Role::getName, Role::getRole));
-        return roles;
-    }
 }
