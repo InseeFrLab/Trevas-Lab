@@ -142,11 +142,11 @@ public class Utils {
                     .mode(SaveMode.Overwrite)
                     .option("delimiter", ";")
                     .option("header", "true")
-                    .csv(path + "/data");
+                    .csv(path);
         else if ("parquet".equals(fileType))
             sparkDataset.write()
                     .mode(SaveMode.Overwrite)
-                    .parquet(path + "/data");
+                    .parquet(path);
         else throw new Exception("Unknow S3 file type: " + fileType);
     }
 

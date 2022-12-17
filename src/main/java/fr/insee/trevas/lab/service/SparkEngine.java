@@ -85,8 +85,8 @@ public class SparkEngine {
                 dataset = spark.read()
                         .option("delimiter", ";")
                         .option("header", "true")
-                        .csv(path + "/data");
-            else if ("parquet".equals(fileType)) dataset = spark.read().parquet(path + "/data");
+                        .csv(path);
+            else if ("parquet".equals(fileType)) dataset = spark.read().parquet(path);
             else throw new Exception("Unknow S3 file type: " + fileType);
         } catch (Exception e) {
             throw new Exception("An error has occured while loading: " + path);
