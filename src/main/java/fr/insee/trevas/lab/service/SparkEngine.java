@@ -195,10 +195,6 @@ public class SparkEngine {
 
         List<Map<String, Object>> structure = new ArrayList<>();
 
-        String roleUrl = queriesForBindings.getRoleUrl();
-        Map<String, fr.insee.vtl.model.Dataset.Role> roles =
-                roleUrl != null && !roleUrl.equals("") ? getRoles(roleUrl, spark) : Map.of();
-
         trevasDs.getDataStructure().entrySet().forEach(e -> {
             Structured.Component component = e.getValue();
             Map<String, Object> row = new HashMap<>();
@@ -206,9 +202,6 @@ public class SparkEngine {
             row.put("type", component.getType().getSimpleName());
             // Default has to be handled by Trevas
             row.put("role", "MEASURE");
-            if (null != roles && null != roles.get(component.getName())) {
-                row.put("role", roles.get(component.getName()));
-            }
             structure.add(row);
         });
         editVisualize.setDataStructure(structure);

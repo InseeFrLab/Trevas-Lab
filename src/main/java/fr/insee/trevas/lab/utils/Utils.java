@@ -1,29 +1,20 @@
 package fr.insee.trevas.lab.utils;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.insee.trevas.lab.model.QueriesForBindingsToSave;
-import fr.insee.trevas.lab.model.Role;
 import fr.insee.trevas.lab.model.S3ForBindings;
 import fr.insee.vtl.spark.SparkDataset;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 
 import javax.script.*;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.nio.file.Path;
-import java.sql.SQLException;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class Utils {
 
@@ -126,20 +117,6 @@ public class Utils {
                     .option("user", values.getUser())
                     .option("password", values.getPassword())
                     .save();
-            String rolesUrl = values.getRoleUrl();
-            if (rolesUrl == null || !rolesUrl.equals("")) {
-                // Trick to write json thanks to spark
-                String json = "";
-                try {
-                    json = objectMapper.writeValueAsString(dataset.getDataStructure().values());
-                } catch (JsonProcessingException e) {
-                    e.printStackTrace();
-                }
-                JavaSparkContext.fromSparkContext(spark.sparkContext())
-                        .parallelize(List.of(json))
-                        .coalesce(1)
-                        .saveAsTextFile(values.getRoleUrl());
-            }
         });
     }
 
@@ -171,18 +148,6 @@ public class Utils {
                     .mode(SaveMode.Overwrite)
                     .parquet(path + "/data");
         else throw new Exception("Unknow S3 file type: " + fileType);
-
-        // Trick to write json thanks to spark
-        String json = "";
-        try {
-            json = objectMapper.writeValueAsString(dataset.getDataStructure().values());
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
-        JavaSparkContext.fromSparkContext(spark.sparkContext())
-                .parallelize(List.of(json))
-                .coalesce(1)
-                .saveAsTextFile(path + "/structure");
     }
 
     public static String getJDBCPrefix(String dbType) throws Exception {
@@ -190,23 +155,4 @@ public class Utils {
         throw new Exception("Unsupported dbtype: " + dbType);
     }
 
-    public static Map<String, fr.insee.vtl.model.Dataset.Role> getRoles(String url, ObjectMapper objectMapper) throws SQLException {
-        List<Role> roles = null;
-        if (null != url) {
-            try {
-                roles = objectMapper.readValue(
-                        new URL(url),
-                        objectMapper.getTypeFactory().constructCollectionType(List.class, Role.class));
-            } catch (JsonProcessingException | MalformedURLException e) {
-                throw new SQLException("Error while fetching roles");
-            } catch (IOException e) {
-                throw new SQLException("Role URL malformed");
-            }
-        }
-        return roles.stream()
-                .collect(Collectors.toMap(
-                        Role::getName,
-                        Role::getRole
-                ));
-    }
 }

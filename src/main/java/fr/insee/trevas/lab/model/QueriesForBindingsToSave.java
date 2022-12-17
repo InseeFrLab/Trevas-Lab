@@ -7,7 +7,6 @@ public class QueriesForBindingsToSave {
     private String password;
     private String table;
     private String dbtype;
-    private String roleUrl;
 
     public String getUrl() {
         return url;
@@ -39,14 +38,6 @@ public class QueriesForBindingsToSave {
 
     public void setDbtype(String dbtype) {
         this.dbtype = dbtype;
-    }
-
-    public String getRoleUrl() {
-        return roleUrl;
-    }
-
-    public void setRoleUrl(String roleUrl) {
-        this.roleUrl = roleUrl;
     }
 
     public String getTable() {
