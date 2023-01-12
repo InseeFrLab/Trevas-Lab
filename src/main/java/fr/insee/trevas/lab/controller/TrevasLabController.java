@@ -151,7 +151,7 @@ public class TrevasLabController {
                     try {
                         output.status = Status.RUNNING;
                         SparkSession.Builder sparkBuilder = SparkSession.builder()
-                                .appName("vtl-lab")
+                                .appName("trevas-lab")
                                 .master("local");
                         SparkSession spark = sparkBuilder.getOrCreate();
 //                        writeSparkDataset(objectMapper, spark, output.location, (SparkDataset) job.bindings.get(variableName));

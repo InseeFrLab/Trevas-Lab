@@ -48,7 +48,7 @@ public class SparkEngine {
     private SparkSession buildSparkSession(ExecutionType type, Boolean addJars) throws Exception {
         SparkConf conf = Utils.loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
         SparkSession.Builder sparkBuilder = SparkSession.builder()
-                .appName("vtl-lab");
+                .appName("trevas-lab");
         if (addJars) {
             // Note: all the dependencies are required for deserialization.
             // See https://stackoverflow.com/questions/28079307

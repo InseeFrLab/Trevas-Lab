@@ -6,6 +6,7 @@ import fr.insee.trevas.lab.model.EditVisualize;
 import fr.insee.trevas.lab.model.QueriesForBindings;
 import fr.insee.trevas.lab.model.User;
 import fr.insee.trevas.lab.utils.Utils;
+import fr.insee.vtl.engine.exceptions.VtlScriptException;
 import fr.insee.vtl.jdbc.JDBCDataset;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -69,7 +70,7 @@ public class InMemoryEngine {
             Bindings outputBindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
             Bindings output = Utils.getBindings(outputBindings);
             return output;
-        } catch (Exception e) {
+        } catch (VtlScriptException e) {
             logger.warn("Eval failed: ", e);
             throw new Exception(e);
         }

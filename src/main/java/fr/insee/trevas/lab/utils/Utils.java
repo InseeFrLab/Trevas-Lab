@@ -88,8 +88,8 @@ public class Utils {
             if (!k.startsWith("$")) {
                 if (v instanceof SparkDataset) {
                     Dataset<Row> sparkDs = ((SparkDataset) v).getSparkDataset();
-                    if (limit != null) output.put(k, new SparkDataset(sparkDs.limit(limit), Map.of()));
-                    else output.put(k, new SparkDataset(sparkDs, Map.of()));
+                    if (limit != null) output.put(k, new SparkDataset(sparkDs.limit(limit)));
+                    else output.put(k, new SparkDataset(sparkDs));
                 } else output.put(k, v);
             }
         });
