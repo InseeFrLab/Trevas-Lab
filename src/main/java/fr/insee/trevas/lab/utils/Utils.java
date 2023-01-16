@@ -12,7 +12,11 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 
-import javax.script.*;
+import javax.script.Bindings;
+import javax.script.ScriptContext;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.SimpleBindings;
 import java.nio.file.Path;
 import java.util.Map;
 
@@ -88,8 +92,8 @@ public class Utils {
             if (!k.startsWith("$")) {
                 if (v instanceof SparkDataset) {
                     Dataset<Row> sparkDs = ((SparkDataset) v).getSparkDataset();
-                    if (limit != null) output.put(k, new SparkDataset(sparkDs.limit(limit), Map.of()));
-                    else output.put(k, new SparkDataset(sparkDs, Map.of()));
+                    if (limit != null) output.put(k, new SparkDataset(sparkDs.limit(limit)));
+                    else output.put(k, new SparkDataset(sparkDs));
                 } else output.put(k, v);
             }
         });
@@ -97,9 +101,8 @@ public class Utils {
     }
 
     public static void writeSparkDatasetsJDBC(Bindings bindings,
-                                              Map<String, QueriesForBindingsToSave> queriesForBindingsToSave,
-                                              ObjectMapper objectMapper,
-                                              SparkSession spark) {
+                                              Map<String, QueriesForBindingsToSave> queriesForBindingsToSave
+    ) {
         queriesForBindingsToSave.forEach((name, values) -> {
             SparkDataset dataset = (SparkDataset) bindings.get(name);
             Dataset<Row> dsSpark = dataset.getSparkDataset();

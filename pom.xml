@@ -12,7 +12,7 @@
     <artifactId>trevas-lab</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>Trevas Lab</name>
-    <description>VTL API calling Trevas</description>
+    <description>Trevas Lab API</description>
 
     <licenses>
         <license>
@@ -23,7 +23,7 @@
 
     <properties>
         <java.version>11</java.version>
-        <trevas.version>0.4.7</trevas.version>
+        <trevas.version>0.4.8</trevas.version>
     </properties>
 
     <dependencyManagement>
