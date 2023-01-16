@@ -97,7 +97,8 @@ public class SparkEngine {
         } catch (Exception e) {
             throw new Exception("An error has occured while loading: " + path);
         }
-        if (limit != null) dataset = (Dataset<Row>) dataset.take(limit);
+        // Explore "take" for efficiency (returns rows)
+        if (limit != null) dataset = dataset.limit(limit);
         return new SparkDataset(dataset);
     }
 
@@ -117,7 +118,8 @@ public class SparkEngine {
                 .option("driver", "net.postgis.jdbc.DriverWrapper")
                 .option("driver", "org.postgresql.Driver")
                 .load();
-        if (limit != null) dataset = (Dataset<Row>) dataset.take(limit);
+        // Explore "take" for efficiency (returns rows)
+        if (limit != null) dataset = dataset.limit(limit);
         return new SparkDataset(dataset);
     }
 
