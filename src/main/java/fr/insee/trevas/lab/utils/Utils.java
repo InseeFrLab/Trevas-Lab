@@ -12,7 +12,11 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 
-import javax.script.*;
+import javax.script.Bindings;
+import javax.script.ScriptContext;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.SimpleBindings;
 import java.nio.file.Path;
 import java.util.Map;
 
@@ -97,9 +101,8 @@ public class Utils {
     }
 
     public static void writeSparkDatasetsJDBC(Bindings bindings,
-                                              Map<String, QueriesForBindingsToSave> queriesForBindingsToSave,
-                                              ObjectMapper objectMapper,
-                                              SparkSession spark) {
+                                              Map<String, QueriesForBindingsToSave> queriesForBindingsToSave
+    ) {
         queriesForBindingsToSave.forEach((name, values) -> {
             SparkDataset dataset = (SparkDataset) bindings.get(name);
             Dataset<Row> dsSpark = dataset.getSparkDataset();

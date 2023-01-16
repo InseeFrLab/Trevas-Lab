@@ -1,7 +1,13 @@
 package fr.insee.trevas.lab.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import fr.insee.trevas.lab.model.*;
+import fr.insee.trevas.lab.model.Body;
+import fr.insee.trevas.lab.model.EditVisualize;
+import fr.insee.trevas.lab.model.ExecutionType;
+import fr.insee.trevas.lab.model.QueriesForBindings;
+import fr.insee.trevas.lab.model.QueriesForBindingsToSave;
+import fr.insee.trevas.lab.model.S3ForBindings;
+import fr.insee.trevas.lab.model.User;
 import fr.insee.trevas.lab.utils.Utils;
 import fr.insee.vtl.model.Structured;
 import fr.insee.vtl.spark.SparkDataset;
@@ -91,7 +97,8 @@ public class SparkEngine {
         } catch (Exception e) {
             throw new Exception("An error has occured while loading: " + path);
         }
-        return new SparkDataset(dataset, Map.of());
+        if (limit != null) dataset = (Dataset<Row>) dataset.take(limit);
+        return new SparkDataset(dataset);
     }
 
     private SparkDataset readJDBCDataset(SparkSession spark, QueriesForBindings queriesForBindings, Integer limit) throws Exception {
@@ -102,7 +109,7 @@ public class SparkEngine {
             e.printStackTrace();
             throw new Exception(e);
         }
-        Dataset<Row> ds = spark.read().format("jdbc")
+        Dataset<Row> dataset = spark.read().format("jdbc")
                 .option("url", jdbcPrefix + queriesForBindings.getUrl())
                 .option("user", queriesForBindings.getUser())
                 .option("password", queriesForBindings.getPassword())
@@ -110,8 +117,8 @@ public class SparkEngine {
                 .option("driver", "net.postgis.jdbc.DriverWrapper")
                 .option("driver", "org.postgresql.Driver")
                 .load();
-        if (limit != null) return new SparkDataset(ds.limit(limit), Map.of());
-        return new SparkDataset(ds, Map.of());
+        if (limit != null) dataset = (Dataset<Row>) dataset.take(limit);
+        return new SparkDataset(dataset);
     }
 
     public Bindings executeSpark(User user, Body body, ExecutionType type) throws Exception {
@@ -156,7 +163,7 @@ public class SparkEngine {
 
         Map<String, QueriesForBindingsToSave> queriesForBindingsToSave = body.getToSave().getJdbcForBindingsToSave();
         if (null != queriesForBindingsToSave) {
-            Utils.writeSparkDatasetsJDBC(outputBindings, queriesForBindingsToSave, objectMapper, spark);
+            Utils.writeSparkDatasetsJDBC(outputBindings, queriesForBindingsToSave);
         }
 
         Map<String, S3ForBindings> s3ToSave = body.getToSave().getS3ForBindings();
