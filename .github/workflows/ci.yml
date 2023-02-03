@@ -19,8 +19,8 @@ jobs:
           servers: |
             [{
                 "id": "Github",
-                "username": "InseeFrLab",
-                "password": "${{ secrets.GITHUB_TOKEN }}"
+                "username": "${{ secrets.GH_PACKAGES_USERNAME }}",
+                "password": "${{ secrets.GH_PACKAGES_PASSWORD }}"
             }]
       - uses: actions/checkout@v2
       - name: Set up JDK 11
