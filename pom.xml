@@ -12,7 +12,7 @@
     <artifactId>trevas-lab</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>Trevas Lab</name>
-    <description>Trevas Lab API</description>
+    <description>VTL API calling Trevas</description>
 
     <licenses>
         <license>
@@ -23,7 +23,7 @@
 
     <properties>
         <java.version>11</java.version>
-        <trevas.version>0.4.8</trevas.version>
+        <trevas.version>0.5.0-SNAPSHOT</trevas.version>
     </properties>
 
     <dependencyManagement>
@@ -35,6 +35,16 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <repositories>
+        <repository>
+            <id>Github</id>
+            <url>https://maven.pkg.github.com/InseeFr/Trevas</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
 
     <dependencies>
 
