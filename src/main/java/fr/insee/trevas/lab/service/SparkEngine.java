@@ -51,11 +51,16 @@ public class SparkEngine {
     @Value("${spark.cluster.master.kubernetes}")
     private String sparkClusterMasterKubernetes;
 
-    private SparkSession buildSparkSession(ExecutionType type, Boolean addJars) throws Exception {
+    private SparkSession buildSparkSession(ExecutionType type) throws Exception {
         SparkConf conf = Utils.loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .appName("trevas-lab");
-        if (addJars) {
+        sparkBuilder.config(conf);
+        if (ExecutionType.LOCAL == type) {
+            sparkBuilder
+                    .master(sparkClusterMasterLocal);
+            return sparkBuilder.getOrCreate();
+        } else {
             // Note: all the dependencies are required for deserialization.
             // See https://stackoverflow.com/questions/28079307
             conf.set("spark.jars", String.join(",",
@@ -65,19 +70,15 @@ public class SparkEngine {
                     "/vtl-engine.jar",
                     "/vtl-jackson.jar"
             ));
-        }
-        sparkBuilder.config(conf);
-        if (ExecutionType.LOCAL == type) {
-            sparkBuilder
-                    .master(sparkClusterMasterLocal);
-            return sparkBuilder.getOrCreate();
-        } else if (ExecutionType.CLUSTER_STATIC == type) {
-            sparkBuilder
-                    .master(sparkClusterMasterStatic);
-        } else if (ExecutionType.CLUSTER_KUBERNETES == type) {
-            sparkBuilder
-                    .master(sparkClusterMasterKubernetes);
-            return sparkBuilder.getOrCreate();
+            if (ExecutionType.CLUSTER_STATIC == type) {
+                sparkBuilder
+                        .master(sparkClusterMasterStatic);
+                return sparkBuilder.getOrCreate();
+            } else if (ExecutionType.CLUSTER_KUBERNETES == type) {
+                sparkBuilder
+                        .master(sparkClusterMasterKubernetes);
+                return sparkBuilder.getOrCreate();
+            }
         }
         throw new Exception("Unknow execution type: " + type);
     }
@@ -128,7 +129,7 @@ public class SparkEngine {
         Map<String, QueriesForBindings> queriesForBindings = body.getQueriesForBindings();
         Map<String, S3ForBindings> s3ForBindings = body.getS3ForBindings();
 
-        SparkSession spark = buildSparkSession(type, true);
+        SparkSession spark = buildSparkSession(type);
 
         Bindings bindings = new SimpleBindings();
 
@@ -181,7 +182,7 @@ public class SparkEngine {
             QueriesForBindings queriesForBindings,
             ExecutionType type) throws Exception {
 
-        SparkSession spark = buildSparkSession(type, false);
+        SparkSession spark = buildSparkSession(type);
 
         fr.insee.vtl.model.Dataset trevasDs = readJDBCDataset(spark, queriesForBindings, 1000);
 
@@ -211,7 +212,7 @@ public class SparkEngine {
             S3ForBindings s3ForBindings,
             ExecutionType type) throws Exception {
 
-        SparkSession spark = buildSparkSession(type, false);
+        SparkSession spark = buildSparkSession(type);
 
         EditVisualize editVisualize = new EditVisualize();
 
