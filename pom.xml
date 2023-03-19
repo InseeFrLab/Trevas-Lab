@@ -37,6 +37,11 @@
     </dependencyManagement>
 
     <repositories>
+        <!-- list of other repositories -->
+        <repository>
+            <id>SparkPackagesRepo</id>
+            <url>https://repos.spark-packages.org/</url>
+        </repository>
         <repository>
             <id>Github</id>
             <url>https://maven.pkg.github.com/InseeFr/Trevas</url>
@@ -48,6 +53,11 @@
 
     <dependencies>
 
+        <dependency>
+            <groupId>saurfang</groupId>
+            <artifactId>spark-sas7bdat</artifactId>
+            <version>3.0.0-s_2.12</version>
+        </dependency>
         <dependency>
             <groupId>fr.insee.trevas</groupId>
             <artifactId>vtl-engine</artifactId>
