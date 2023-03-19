@@ -99,7 +99,7 @@ public class SparkEngine {
                     .load(path);
             else throw new Exception("Unknow S3 file type: " + fileType);
         } catch (Exception e) {
-            throw new Exception("An error has occured while loading: " + path);
+            throw new Exception(e.getMessage());
         }
         // Explore "take" for efficiency (returns rows)
         if (limit != null) dataset = dataset.limit(limit);
