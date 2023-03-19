@@ -94,6 +94,9 @@ public class SparkEngine {
                         .option("header", "true")
                         .csv(path);
             else if ("parquet".equals(fileType)) dataset = spark.read().parquet(path);
+            else if ("sas".equals(fileType)) dataset = spark.read()
+                    .format("com.github.saurfang.sas.spark")
+                    .load(path);
             else throw new Exception("Unknow S3 file type: " + fileType);
         } catch (Exception e) {
             throw new Exception("An error has occured while loading: " + path);
@@ -174,7 +177,7 @@ public class SparkEngine {
             Utils.writeSparkS3Datasets(outputBindings, s3ToSave, objectMapper, spark);
         }
 
-        return Utils.getSparkBindings(outputBindings, 1000);
+        return Utils.getSparkBindings(outputBindings, 100);
     }
 
     public ResponseEntity<EditVisualize> getJDBC(
@@ -184,7 +187,7 @@ public class SparkEngine {
 
         SparkSession spark = buildSparkSession(type);
 
-        fr.insee.vtl.model.Dataset trevasDs = readJDBCDataset(spark, queriesForBindings, 1000);
+        fr.insee.vtl.model.Dataset trevasDs = readJDBCDataset(spark, queriesForBindings, 100);
 
         EditVisualize editVisualize = new EditVisualize();
 
@@ -216,7 +219,7 @@ public class SparkEngine {
 
         EditVisualize editVisualize = new EditVisualize();
 
-        fr.insee.vtl.model.Dataset trevasDs = readS3Dataset(spark, s3ForBindings, 1000);
+        fr.insee.vtl.model.Dataset trevasDs = readS3Dataset(spark, s3ForBindings, 100);
 
         List<Map<String, Object>> structure = new ArrayList<>();
         trevasDs.getDataStructure().entrySet().forEach(e -> {
