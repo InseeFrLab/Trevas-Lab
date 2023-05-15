@@ -10,7 +10,7 @@
     </parent>
     <groupId>fr.insee</groupId>
     <artifactId>trevas-lab</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <name>Trevas Lab</name>
     <description>VTL API calling Trevas</description>
 
@@ -23,7 +23,7 @@
 
     <properties>
         <java.version>11</java.version>
-        <trevas.version>0.5.0-SNAPSHOT</trevas.version>
+        <trevas.version>1.0.0</trevas.version>
     </properties>
 
     <dependencyManagement>
@@ -89,12 +89,12 @@
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-aws</artifactId>
-            <version>3.3.1</version>
+            <version>3.3.4</version>
         </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-client</artifactId>
-            <version>3.3.1</version>
+            <version>3.3.4</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.thoughtworks.paranamer</groupId>
@@ -125,7 +125,7 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.3.4</version>
+            <version>42.6.0</version>
         </dependency>
         <dependency>
             <groupId>net.postgis</groupId>
