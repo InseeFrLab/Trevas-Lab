@@ -76,6 +76,9 @@ public class Utils {
                     if (normalizedName.contains("extrajavaoptions")) {
                         normalizedName = normalizedName.replace("extrajavaoptions", "extraJavaOptions");
                     }
+                    if (normalizedName.contains("pullpolicy")) {
+                        normalizedName = normalizedName.replace("pullpolicy", "pullPolicy");
+                    }
                     conf.set(normalizedName, entry.getValue());
                 }
             }
