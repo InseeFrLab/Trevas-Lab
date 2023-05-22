@@ -57,6 +57,16 @@
             <groupId>saurfang</groupId>
             <artifactId>spark-sas7bdat</artifactId>
             <version>3.0.0-s_2.12</version>
+                <exclusions>
+        <exclusion>  <!-- declare the exclusion here -->
+          <groupId>org.scala-lang</groupId>
+          <artifactId>scala-library</artifactId>
+        </exclusion>
+        <exclusion>
+        <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-api-scala_2.12</artifactId>
+        </exclusion>
+      </exclusions> 
         </dependency>
         <dependency>
             <groupId>fr.insee.trevas</groupId>
