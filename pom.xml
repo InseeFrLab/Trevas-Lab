@@ -10,7 +10,7 @@
     </parent>
     <groupId>fr.insee</groupId>
     <artifactId>trevas-lab</artifactId>
-    <version>0.2.0</version>
+    <version>0.2.1</version>
     <name>Trevas Lab</name>
     <description>VTL API calling Trevas</description>
 
@@ -57,6 +57,21 @@
             <groupId>saurfang</groupId>
             <artifactId>spark-sas7bdat</artifactId>
             <version>3.0.0-s_2.12</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.scala-lang</groupId>
+                    <artifactId>scala-library</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-api-scala_2.12</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+            <version>2.12.15</version>
         </dependency>
         <dependency>
             <groupId>fr.insee.trevas</groupId>
