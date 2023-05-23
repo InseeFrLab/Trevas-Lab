@@ -53,7 +53,9 @@ public class Utils {
                 org.apache.spark.util.Utils.loadDefaultSparkProperties(conf, path.normalize().toAbsolutePath().toString());
             }
             for (Map.Entry<String, String> entry : System.getenv().entrySet()) {
-                conf.set(entry.getKey(), entry.getValue());
+                if (entry.getKey().startsWith("spark.")) {
+                    conf.set(entry.getKey(), entry.getValue());
+                }
             }
             return conf;
         } catch (Exception ex) {
