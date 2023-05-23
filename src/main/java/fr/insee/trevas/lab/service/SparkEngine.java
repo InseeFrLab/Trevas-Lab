@@ -1,13 +1,7 @@
 package fr.insee.trevas.lab.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import fr.insee.trevas.lab.model.Body;
-import fr.insee.trevas.lab.model.EditVisualize;
-import fr.insee.trevas.lab.model.ExecutionType;
-import fr.insee.trevas.lab.model.QueriesForBindings;
-import fr.insee.trevas.lab.model.QueriesForBindingsToSave;
-import fr.insee.trevas.lab.model.S3ForBindings;
-import fr.insee.trevas.lab.model.User;
+import fr.insee.trevas.lab.model.*;
 import fr.insee.trevas.lab.utils.Utils;
 import fr.insee.vtl.model.Structured;
 import fr.insee.vtl.spark.SparkDataset;
@@ -18,7 +12,6 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -42,15 +35,6 @@ public class SparkEngine {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @Value("${spark.cluster.master.local}")
-    private String sparkClusterMasterLocal;
-
-    @Value("${spark.cluster.master.static}")
-    private String sparkClusterMasterStatic;
-
-    @Value("${spark.cluster.master.kubernetes}")
-    private String sparkClusterMasterKubernetes;
-
     private SparkSession buildSparkSession(ExecutionType type) throws Exception {
         SparkConf conf = Utils.loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
         SparkSession.Builder sparkBuilder = SparkSession.builder()
@@ -58,7 +42,7 @@ public class SparkEngine {
         sparkBuilder.config(conf);
         if (ExecutionType.LOCAL == type) {
             sparkBuilder
-                    .master(sparkClusterMasterLocal);
+                    .master("local");
             return sparkBuilder.getOrCreate();
         } else {
             // Note: all the dependencies are required for deserialization.
@@ -70,17 +54,8 @@ public class SparkEngine {
                     "/vtl-engine.jar",
                     "/vtl-jackson.jar"
             ));
-            if (ExecutionType.CLUSTER_STATIC == type) {
-                sparkBuilder
-                        .master(sparkClusterMasterStatic);
-                return sparkBuilder.getOrCreate();
-            } else if (ExecutionType.CLUSTER_KUBERNETES == type) {
-                sparkBuilder
-                        .master(sparkClusterMasterKubernetes);
-                return sparkBuilder.getOrCreate();
-            }
+            return sparkBuilder.getOrCreate();
         }
-        throw new Exception("Unknow execution type: " + type);
     }
 
     private SparkDataset readS3Dataset(SparkSession spark, S3ForBindings s3, Integer limit) throws Exception {
