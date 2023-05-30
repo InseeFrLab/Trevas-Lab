@@ -133,6 +133,7 @@ public class Utils {
 
     public static String getJDBCPrefix(String dbType) throws Exception {
         if (dbType.equals("postgre")) return "jdbc:postgresql://";
+        if (dbType.equals("mariadb")) return "jdbc:mariadb://";
         throw new Exception("Unsupported dbtype: " + dbType);
     }
 
