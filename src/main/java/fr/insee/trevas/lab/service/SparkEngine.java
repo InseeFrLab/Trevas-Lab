@@ -96,6 +96,7 @@ public class SparkEngine {
                 .option("query", queriesForBindings.getQuery())
                 .option("driver", "net.postgis.jdbc.DriverWrapper")
                 .option("driver", "org.postgresql.Driver")
+                .option("driver", "org.mariadb.jdbc.Driver")
                 .load();
         // Explore "take" for efficiency (returns rows)
         if (limit != null) dataset = dataset.limit(limit);
