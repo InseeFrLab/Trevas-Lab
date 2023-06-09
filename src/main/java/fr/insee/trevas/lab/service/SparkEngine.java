@@ -8,6 +8,7 @@ import fr.insee.vtl.spark.SparkDataset;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.spark.SparkConf;
+import org.apache.spark.sql.DataFrameReader;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -37,6 +38,7 @@ public class SparkEngine {
 
     private SparkSession buildSparkSession(ExecutionType type) throws Exception {
         SparkConf conf = Utils.loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
+        conf.set("spark.driver.allowMultipleContexts","true");
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .appName("trevas-lab");
         sparkBuilder.config(conf);
@@ -83,21 +85,26 @@ public class SparkEngine {
 
     private SparkDataset readJDBCDataset(SparkSession spark, QueriesForBindings queriesForBindings, Integer limit) throws Exception {
         String jdbcPrefix = "";
+        String dbType = queriesForBindings.getDbtype();
         try {
-            jdbcPrefix = Utils.getJDBCPrefix(queriesForBindings.getDbtype());
+            jdbcPrefix = Utils.getJDBCPrefix(dbType);
         } catch (Exception e) {
             e.printStackTrace();
             throw new Exception(e);
         }
-        Dataset<Row> dataset = spark.read().format("jdbc")
+        DataFrameReader dfReader = spark.read().format("jdbc")
                 .option("url", jdbcPrefix + queriesForBindings.getUrl())
                 .option("user", queriesForBindings.getUser())
                 .option("password", queriesForBindings.getPassword())
-                .option("query", queriesForBindings.getQuery())
-                .option("driver", "net.postgis.jdbc.DriverWrapper")
-                .option("driver", "org.postgresql.Driver")
-                .option("driver", "org.mariadb.jdbc.Driver")
-                .load();
+                .option("query", queriesForBindings.getQuery());
+        if (dbType.equals("postgre")) {
+            dfReader.option("driver", "net.postgis.jdbc.DriverWrapper")
+                    .option("driver", "org.postgresql.Driver");
+        }
+        if (dbType.equals("mariadb")) {
+            dfReader.option("driver", "com.mysql.cj.jdbc.Driver");
+        }
+        Dataset<Row> dataset = dfReader.load();
         // Explore "take" for efficiency (returns rows)
         if (limit != null) dataset = dataset.limit(limit);
         return new SparkDataset(dataset);
