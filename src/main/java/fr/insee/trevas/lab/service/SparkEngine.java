@@ -36,28 +36,25 @@ public class SparkEngine {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private SparkSession buildSparkSession(ExecutionType type) throws Exception {
+    private SparkSession buildSparkSession() {
         SparkConf conf = Utils.loadSparkConfig(System.getenv("SPARK_CONF_DIR"));
-        conf.set("spark.driver.allowMultipleContexts","true");
+        conf.set("spark.driver.allowMultipleContexts", "true");
+        // Note: all the dependencies are required for deserialization.
+        // See https://stackoverflow.com/questions/28079307
+        conf.set("spark.jars", String.join(",",
+                "/vtl-spark.jar",
+                "/vtl-model.jar",
+                "/vtl-parser.jar",
+                "/vtl-engine.jar",
+                "/vtl-jackson.jar"
+        ));
         SparkSession.Builder sparkBuilder = SparkSession.builder()
                 .appName("trevas-lab");
-        sparkBuilder.config(conf);
-        if (ExecutionType.LOCAL == type) {
-            sparkBuilder
-                    .master("local");
-            return sparkBuilder.getOrCreate();
-        } else {
-            // Note: all the dependencies are required for deserialization.
-            // See https://stackoverflow.com/questions/28079307
-            conf.set("spark.jars", String.join(",",
-                    "/vtl-spark.jar",
-                    "/vtl-model.jar",
-                    "/vtl-parser.jar",
-                    "/vtl-engine.jar",
-                    "/vtl-jackson.jar"
-            ));
-            return sparkBuilder.getOrCreate();
+        if (!conf.contains("spark.master")) {
+            conf.set("spark.master", "local");
         }
+        sparkBuilder.config(conf);
+        return sparkBuilder.getOrCreate();
     }
 
     private SparkDataset readS3Dataset(SparkSession spark, S3ForBindings s3, Integer limit) throws Exception {
@@ -110,12 +107,12 @@ public class SparkEngine {
         return new SparkDataset(dataset);
     }
 
-    public Bindings executeSpark(User user, Body body, ExecutionType type) throws Exception {
+    public Bindings executeSpark(User user, Body body) throws Exception {
         String script = body.getVtlScript();
         Map<String, QueriesForBindings> queriesForBindings = body.getQueriesForBindings();
         Map<String, S3ForBindings> s3ForBindings = body.getS3ForBindings();
 
-        SparkSession spark = buildSparkSession(type);
+        SparkSession spark = buildSparkSession();
 
         Bindings bindings = new SimpleBindings();
 
@@ -165,10 +162,9 @@ public class SparkEngine {
 
     public ResponseEntity<EditVisualize> getJDBC(
             User user,
-            QueriesForBindings queriesForBindings,
-            ExecutionType type) throws Exception {
+            QueriesForBindings queriesForBindings) throws Exception {
 
-        SparkSession spark = buildSparkSession(type);
+        SparkSession spark = buildSparkSession();
 
         fr.insee.vtl.model.Dataset trevasDs = readJDBCDataset(spark, queriesForBindings, 100);
 
@@ -195,10 +191,9 @@ public class SparkEngine {
 
     public ResponseEntity<EditVisualize> getS3(
             User user,
-            S3ForBindings s3ForBindings,
-            ExecutionType type) throws Exception {
+            S3ForBindings s3ForBindings) throws Exception {
 
-        SparkSession spark = buildSparkSession(type);
+        SparkSession spark = buildSparkSession();
 
         EditVisualize editVisualize = new EditVisualize();
 
