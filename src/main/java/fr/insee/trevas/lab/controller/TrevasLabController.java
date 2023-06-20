@@ -44,8 +44,7 @@ public class TrevasLabController {
             Authentication auth,
             @RequestBody Body body,
             @RequestParam("mode") ExecutionMode mode,
-            @RequestParam("connectorType") ConnectorType connectorType,
-            @RequestParam("type") ExecutionType type
+            @RequestParam("connectorType") ConnectorType connectorType
     ) throws Exception {
         if (mode == ExecutionMode.MEMORY) {
             if (connectorType == ConnectorType.JDBC)
@@ -53,9 +52,9 @@ public class TrevasLabController {
             else throw new Exception("Unknow connector type: " + mode);
         } else if (mode == ExecutionMode.SPARK) {
             if (connectorType == ConnectorType.JDBC)
-                return sparkEngine.getJDBC(userProvider.getUser(auth), body.getQueriesForBindings().get("config"), type);
+                return sparkEngine.getJDBC(userProvider.getUser(auth), body.getQueriesForBindings().get("config"));
             else if (connectorType == ConnectorType.S3)
-                return sparkEngine.getS3(userProvider.getUser(auth), body.getS3ForBindings().get("config"), type);
+                return sparkEngine.getS3(userProvider.getUser(auth), body.getS3ForBindings().get("config"));
             else throw new Exception("Unknow connector type: " + mode);
         } else throw new Exception("Unknow mode: " + mode);
     }
@@ -64,8 +63,7 @@ public class TrevasLabController {
     public ResponseEntity<UUID> executeNew(
             Authentication auth,
             @RequestBody Body body,
-            @RequestParam("mode") ExecutionMode mode,
-            @RequestParam("type") ExecutionType type
+            @RequestParam("mode") ExecutionMode mode
     ) throws Exception {
         Job job;
         if (mode == ExecutionMode.MEMORY) {
@@ -78,25 +76,14 @@ public class TrevasLabController {
                 }
             });
         } else if (mode == ExecutionMode.SPARK) {
-            switch (type) {
-                case LOCAL:
-                case CLUSTER_STATIC:
-                case CLUSTER_KUBERNETES:
-                    job = executeJob(body, () -> {
-                        try {
-                            return sparkEngine.executeSpark(userProvider.getUser(auth), body, type);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            throw new Exception(e.getMessage());
-                        }
-                    });
-                    break;
-                default:
-                    throw new ResponseStatusException(
-                            HttpStatus.BAD_REQUEST,
-                            "Unsupported execution type: " + type
-                    );
-            }
+            job = executeJob(body, () -> {
+                try {
+                    return sparkEngine.executeSpark(userProvider.getUser(auth), body);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    throw new Exception(e.getMessage());
+                }
+            });
         } else throw new Exception("Unknow mode:" + mode);
         jobs.put(job.id, job);
         return ResponseEntity.status(HttpStatus.CREATED)
