@@ -205,8 +205,7 @@ public class SparkEngine {
             Map<String, Object> rowMap = new HashMap<>();
             rowMap.put("name", component.getName());
             rowMap.put("type", component.getType().getSimpleName());
-            // Default has to be handled by Trevas
-            rowMap.put("role", "MEASURE");
+            rowMap.put("role", component.getRole().toString());
             structure.add(rowMap);
         });
         editVisualize.setDataStructure(structure);
