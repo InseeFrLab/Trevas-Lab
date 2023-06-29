@@ -3,6 +3,7 @@ package fr.insee.trevas.lab.utils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.insee.trevas.lab.model.QueriesForBindingsToSave;
 import fr.insee.trevas.lab.model.S3ForBindings;
+import fr.insee.vtl.model.InMemoryDataset;
 import fr.insee.vtl.spark.SparkDataset;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -70,8 +71,13 @@ public class Utils {
             if (!k.startsWith("$")) {
                 if (v instanceof SparkDataset) {
                     Dataset<Row> sparkDs = ((SparkDataset) v).getSparkDataset();
-                    if (limit != null) output.put(k, new SparkDataset(sparkDs.limit(limit)));
-                    else output.put(k, new SparkDataset(sparkDs));
+                    if (limit != null) {
+                        SparkDataset sparkDataset = new SparkDataset(sparkDs.limit(limit));
+                        InMemoryDataset im = new InMemoryDataset(
+                                sparkDataset.getDataPoints(),
+                                sparkDataset.getDataStructure());
+                        output.put(k, im);
+                    } else output.put(k, new SparkDataset(sparkDs)); // useless
                 } else output.put(k, v);
             }
         });
