@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trevas-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trevas-lab
+  template:
+    metadata:
+      labels:
+        app: trevas-lab
+    spec:
+      serviceAccountName: trevas-lab-sa
+      hostname: trevas-lab-hostname
+      subdomain: trevas-lab
+      containers:
+        - name: trevas-lab
+          image: inseefrlab/trevas-lab:0.3.3
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SPARK_KUBERNETES_DRIVER_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          envFrom:
+            - configMapRef:
+                name: trevas-lab-config-map
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trevas-lab-svc
+spec:
+  selector:
+    app: trevas-lab
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 9376

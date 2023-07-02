@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trevas-lab-config-map
+data:
+  spark.master: "..."
+  spark.kubernetes.namespace: "my_namespace"
+  spark.driver.memory: "8g"
+  spark.executor.memory: "16g"
+  spark.kubernetes.container.image: "inseefrlab/spark-hadoop:1.0.1"
+  spark.kubernetes.container.image.pullPolicy: "IfNotPresent"
+  spark.kubernetes.executor.request.cores: "100m"
+  spark.dynamicAllocation.enabled: "true"
+  spark.dynamicAllocation.minExecutors: "1"
+  spark.dynamicAllocation.maxExecutors: "20"
+  spark.dynamicAllocation.shuffleTracking.enabled: "true"
+  spark.rpc.message.maxsize: "2046"
+  spark.hadoop.fs.s3a.access.key: "..."
+  spark.hadoop.fs.s3a.secret.key: "..."
+  spark.hadoop.fs.s3a.connection.ssl.enabled: "true"
+  spark.hadoop.fs.s3a.endpoint: "..."
+  auth.mod: "NONE"
+  spring.security.oauth2.resourceserver.jwt.issuer-uri: "..."
