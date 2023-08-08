@@ -1,6 +1,7 @@
 package fr.insee.trevas.lab;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import fr.insee.vtl.jackson.TrevasModule;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -18,7 +19,8 @@ public class TrevasLabApplication {
     @Primary
     public ObjectMapper objectMapper() {
         return new ObjectMapper()
-                .registerModule(new TrevasModule());
+                .registerModule(new TrevasModule())
+                .registerModule(new JavaTimeModule());
     }
 
 }
