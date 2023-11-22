@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.insee.trevas.lab.model.QueriesForBindingsToSave;
 import fr.insee.trevas.lab.model.S3ForBindings;
 import fr.insee.vtl.model.InMemoryDataset;
+import fr.insee.vtl.model.PersistentDataset;
 import fr.insee.vtl.spark.SparkDataset;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -40,7 +41,7 @@ public class Utils {
     public static Bindings getBindings(Bindings input) {
         Bindings output = new SimpleBindings();
         input.forEach((k, v) -> {
-            if (!k.startsWith("$")) output.put(k, v);
+            if (v instanceof PersistentDataset) output.put(k, v);
         });
         return output;
     }
@@ -68,9 +69,10 @@ public class Utils {
     public static Bindings getSparkBindings(Bindings input, Integer limit) {
         Bindings output = new SimpleBindings();
         input.forEach((k, v) -> {
-            if (!k.startsWith("$")) {
-                if (v instanceof SparkDataset) {
-                    Dataset<Row> sparkDs = ((SparkDataset) v).getSparkDataset();
+            if (v instanceof PersistentDataset) {
+                fr.insee.vtl.model.Dataset ds = ((PersistentDataset) v).getDelegate();
+                if (ds instanceof SparkDataset) {
+                    Dataset<Row> sparkDs = ((SparkDataset) ds).getSparkDataset();
                     if (limit != null) {
                         SparkDataset sparkDataset = new SparkDataset(sparkDs.limit(limit));
                         InMemoryDataset im = new InMemoryDataset(
@@ -78,7 +80,7 @@ public class Utils {
                                 sparkDataset.getDataStructure());
                         output.put(k, im);
                     } else output.put(k, new SparkDataset(sparkDs)); // useless
-                } else output.put(k, v);
+                }
             }
         });
         return output;
