@@ -1,4 +1,4 @@
-FROM openjdk:11-jre-slim
+FROM openjdk:17-jdk-slim
 EXPOSE 8080
 
 COPY target/lib /lib/
