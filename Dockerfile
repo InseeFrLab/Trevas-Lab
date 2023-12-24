@@ -1,4 +1,4 @@
-FROM openjdk:11-jre-slim
+FROM openjdk:17-jdk-slim
 EXPOSE 8080
 
 COPY target/lib /lib/
@@ -13,4 +13,4 @@ COPY target/lib/postgis-jdbc-*.jar /postgis-jdbc.jar
 
 COPY target/trevas-lab*.jar.original /lib/trevas-lab.jar
 
-ENTRYPOINT ["java", "-cp", "/lib/*", "fr.insee.trevas.lab.TrevasLabApplication"]
+ENTRYPOINT ["java", "-cp", "/lib/*", "--add-exports", "java.base/sun.nio.ch=ALL-UNNAMED", "fr.insee.trevas.lab.TrevasLabApplication"]
