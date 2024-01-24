@@ -90,22 +90,32 @@ public class Utils {
                                               Map<String, QueriesForBindingsToSave> queriesForBindingsToSave
     ) {
         queriesForBindingsToSave.forEach((name, values) -> {
-            SparkDataset dataset = (SparkDataset) bindings.get(name);
-            Dataset<Row> dsSpark = dataset.getSparkDataset();
-            String jdbcPrefix = "";
-            try {
-                jdbcPrefix = getJDBCPrefix(values.getDbtype());
-            } catch (Exception e) {
-                e.printStackTrace();
+            Object ds = bindings.get(name);
+            if (!(ds instanceof PersistentDataset)) {
+                try {
+                    throw new Exception(name + " is not a Persistent datatset (affect it with \"<-\")");
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
             }
-            dsSpark.write()
-                    .mode(SaveMode.Overwrite)
-                    .format("jdbc")
-                    .option("url", jdbcPrefix + values.getUrl())
-                    .option("dbtable", values.getTable())
-                    .option("user", values.getUser())
-                    .option("password", values.getPassword())
-                    .save();
+            fr.insee.vtl.model.Dataset dataset = ((PersistentDataset) bindings.get(name)).getDelegate();
+            if (dataset instanceof SparkDataset) {
+                String jdbcPrefix = "";
+                try {
+                    Dataset<Row> dsSpark = ((SparkDataset) dataset).getSparkDataset();
+                    jdbcPrefix = getJDBCPrefix(values.getDbtype());
+                    dsSpark.write()
+                            .mode(SaveMode.Overwrite)
+                            .format("jdbc")
+                            .option("url", jdbcPrefix + values.getUrl())
+                            .option("dbtable", values.getTable())
+                            .option("user", values.getUser())
+                            .option("password", values.getPassword())
+                            .save();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
         });
     }
 
@@ -113,11 +123,21 @@ public class Utils {
                                             ObjectMapper objectMapper,
                                             SparkSession spark) {
         s3toSave.forEach((name, values) -> {
-            SparkDataset dataset = (SparkDataset) bindings.get(name);
-            try {
-                writeSparkDataset(objectMapper, spark, values, dataset);
-            } catch (Exception e) {
-                e.printStackTrace();
+            Object ds = bindings.get(name);
+            if (!(ds instanceof PersistentDataset)) {
+                try {
+                    throw new Exception(name + " is not a Persistent datatset (affect it with \"<-\")");
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            fr.insee.vtl.model.Dataset dataset = ((PersistentDataset) bindings.get(name)).getDelegate();
+            if (dataset instanceof SparkDataset) {
+                try {
+                    writeSparkDataset(objectMapper, spark, values, (SparkDataset) dataset);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         });
     }
