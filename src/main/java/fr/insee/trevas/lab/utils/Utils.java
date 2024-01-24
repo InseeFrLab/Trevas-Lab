@@ -41,7 +41,14 @@ public class Utils {
     public static Bindings getBindings(Bindings input) {
         Bindings output = new SimpleBindings();
         input.forEach((k, v) -> {
-            if (v instanceof PersistentDataset) output.put(k, v);
+            if (!k.startsWith("$")) {
+                if (v instanceof PersistentDataset) {
+                    output.put(k + "$PersistentDataset", v);
+                } else {
+                    output.put(k, v);
+                }
+            }
+            ;
         });
         return output;
     }
@@ -69,17 +76,26 @@ public class Utils {
     public static Bindings getSparkBindings(Bindings input, Integer limit) {
         Bindings output = new SimpleBindings();
         input.forEach((k, v) -> {
-            if (v instanceof PersistentDataset) {
-                fr.insee.vtl.model.Dataset ds = ((PersistentDataset) v).getDelegate();
-                if (ds instanceof SparkDataset) {
-                    Dataset<Row> sparkDs = ((SparkDataset) ds).getSparkDataset();
+            if (!k.startsWith("$")) {
+                if ((v instanceof PersistentDataset) || (v instanceof SparkDataset)) {
+                    String name = k;
+                    SparkDataset spDs = null;
+                    if (v instanceof PersistentDataset) {
+                        fr.insee.vtl.model.Dataset ds = ((PersistentDataset) v).getDelegate();
+                        name = name + "$PersistentDataset";
+                        spDs = (SparkDataset) ds;
+                    }
+                    if (v instanceof SparkDataset) {
+                        spDs = (SparkDataset) v;
+                    }
+                    Dataset<Row> sparkDs = (spDs).getSparkDataset();
                     if (limit != null) {
                         SparkDataset sparkDataset = new SparkDataset(sparkDs.limit(limit));
                         InMemoryDataset im = new InMemoryDataset(
                                 sparkDataset.getDataPoints(),
                                 sparkDataset.getDataStructure());
-                        output.put(k, im);
-                    } else output.put(k, new SparkDataset(sparkDs)); // useless
+                        output.put(name, im);
+                    } else output.put(name, new SparkDataset(sparkDs)); // useless
                 }
             }
         });
