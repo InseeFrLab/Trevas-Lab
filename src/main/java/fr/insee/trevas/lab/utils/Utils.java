@@ -106,6 +106,13 @@ public class Utils {
                                               Map<String, QueriesForBindingsToSave> queriesForBindingsToSave
     ) {
         queriesForBindingsToSave.forEach((name, values) -> {
+            if (!bindings.containsKey(name)) {
+                try {
+                    throw new Exception(name + " is not defined in script");
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
             Object ds = bindings.get(name);
             if (!(ds instanceof PersistentDataset)) {
                 try {
