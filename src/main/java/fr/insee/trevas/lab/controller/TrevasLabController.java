@@ -5,6 +5,10 @@ import fr.insee.trevas.lab.configuration.security.UserProvider;
 import fr.insee.trevas.lab.model.*;
 import fr.insee.trevas.lab.service.InMemoryEngine;
 import fr.insee.trevas.lab.service.SparkEngine;
+import fr.insee.vtl.prov.ProvenanceListener;
+import fr.insee.vtl.prov.RDFUtils;
+import fr.insee.vtl.prov.prov.Program;
+import org.apache.jena.rdf.model.Model;
 import org.apache.spark.sql.SparkSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -57,6 +61,20 @@ public class TrevasLabController {
                 return sparkEngine.getS3(userProvider.getUser(auth), body.getS3ForBindings().get("config"));
             else throw new Exception("Unknow connector type: " + mode);
         } else throw new Exception("Unknow mode: " + mode);
+    }
+
+    @PostMapping("/provenance")
+    public ResponseEntity<String> postProvenance(
+            Authentication auth,
+            @RequestBody BodyProvenance body
+    ) {
+        String id = body.getId();
+        String name = body.getName();
+        String script = body.getScript();
+        Program program = ProvenanceListener.run(script, id, name);
+        Model model = RDFUtils.buildModel(program);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(RDFUtils.serialize(model, "JSON-LD"));
     }
 
     @PostMapping("/execute")
