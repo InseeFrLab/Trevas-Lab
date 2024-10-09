@@ -81,13 +81,14 @@ public class TrevasLabController {
     public ResponseEntity<UUID> executeNew(
             Authentication auth,
             @RequestBody Body body,
-            @RequestParam("mode") ExecutionMode mode
+            @RequestParam("mode") ExecutionMode mode,
+            @RequestParam("preview") Boolean preview
     ) throws Exception {
         Job job;
         if (mode == ExecutionMode.MEMORY) {
             job = executeJob(body, () -> {
                 try {
-                    return inMemoryEngine.executeInMemory(userProvider.getUser(auth), body);
+                    return inMemoryEngine.executeInMemory(userProvider.getUser(auth), body, preview);
                 } catch (Exception e) {
                     e.printStackTrace();
                     throw new Exception(e.getMessage());
@@ -96,7 +97,7 @@ public class TrevasLabController {
         } else if (mode == ExecutionMode.SPARK) {
             job = executeJob(body, () -> {
                 try {
-                    return sparkEngine.executeSpark(userProvider.getUser(auth), body);
+                    return sparkEngine.executeSpark(userProvider.getUser(auth), body, preview);
                 } catch (Exception e) {
                     e.printStackTrace();
                     throw new Exception(e.getMessage());

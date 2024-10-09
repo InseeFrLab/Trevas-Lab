@@ -30,7 +30,7 @@ public class InMemoryEngine {
     @Autowired
     private ObjectMapper objectMapper;
 
-    public Bindings executeInMemory(User user, Body body) throws Exception {
+    public Bindings executeInMemory(User user, Body body, Boolean preview) throws Exception {
         String script = body.getVtlScript();
         Bindings bindings = body.getBindings();
         Map<String, QueriesForBindings> queriesForBindings = body.getQueriesForBindings();
@@ -53,7 +53,8 @@ public class InMemoryEngine {
                                     v.getPassword())
                     ) {
                         Statement statement = connection.createStatement();
-                        return statement.executeQuery(v.getQuery());
+                        String query = preview ? v.getQuery() + " LIMIT 0" : v.getQuery();
+                        return statement.executeQuery(query);
                     } catch (SQLException se) {
                         throw new RuntimeException(se);
                     }

@@ -107,7 +107,7 @@ public class SparkEngine {
         return new SparkDataset(dataset);
     }
 
-    public Bindings executeSpark(User user, Body body) throws Exception {
+    public Bindings executeSpark(User user, Body body, Boolean preview) throws Exception {
         String script = body.getVtlScript();
         Map<String, QueriesForBindings> queriesForBindings = body.getQueriesForBindings();
         Map<String, S3ForBindings> s3ForBindings = body.getS3ForBindings();
@@ -116,10 +116,13 @@ public class SparkEngine {
 
         Bindings bindings = new SimpleBindings();
 
+        Integer limit = preview ? 0 : null;
+
         if (queriesForBindings != null) {
             queriesForBindings.forEach((k, v) -> {
                 try {
-                    SparkDataset sparkDataset = readJDBCDataset(spark, v, null);
+
+                    SparkDataset sparkDataset = readJDBCDataset(spark, v, limit);
                     bindings.put(k, sparkDataset);
                 } catch (Exception e) {
                     logger.warn("Query loading failed: ", e);
@@ -129,7 +132,7 @@ public class SparkEngine {
         if (s3ForBindings != null) {
             s3ForBindings.forEach((k, v) -> {
                 try {
-                    SparkDataset sparkDataset = readS3Dataset(spark, v, null);
+                    SparkDataset sparkDataset = readS3Dataset(spark, v, limit);
                     bindings.put(k, sparkDataset);
                 } catch (Exception e) {
                     logger.warn("S3 loading failed: ", e);
