@@ -10,7 +10,7 @@
     </parent>
     <groupId>fr.insee</groupId>
     <artifactId>trevas-lab</artifactId>
-    <version>0.5.2</version>
+    <version>0.6.0</version>
     <name>Trevas Lab</name>
     <description>VTL API calling Trevas</description>
 
@@ -23,7 +23,7 @@
 
     <properties>
         <java.version>21</java.version>
-        <trevas.version>1.5.0</trevas.version>
+        <trevas.version>1.7.0</trevas.version>
         <jackson.version>2.15.2</jackson.version>
     </properties>
 
@@ -82,6 +82,11 @@
         <dependency>
             <groupId>fr.insee.trevas</groupId>
             <artifactId>vtl-spark</artifactId>
+            <version>${trevas.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>fr.insee.trevas</groupId>
+            <artifactId>vtl-prov</artifactId>
             <version>${trevas.version}</version>
         </dependency>
         <dependency>
@@ -234,6 +239,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.3.1</version>
+                <configuration>
+                    <argLine>--add-exports java.base/sun.nio.ch=ALL-UNNAMED</argLine>
+                </configuration>
             </plugin>
             <plugin>
                 <artifactId>maven-dependency-plugin</artifactId>
